@@ -1,8 +1,7 @@
 name: editors
 description: Simple Flutter Editors including StringEditor, IntEditor, EnumEditor, BoolEditor
 version: 0.0.1
-author:
-homepage:
+homepage: https://github.com/creomobile/editors
 
 environment:
   sdk: ">=2.6.0 <3.0.0"
