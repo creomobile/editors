@@ -595,8 +595,10 @@ class EnumEditor<T> extends Editor<T> {
         splashColor: splashColor,
       );
 
-  static Widget defaultItemBuilder(BuildContext context, item) =>
-      ListTile(title: Text(_TextHelper.enumToString(item)));
+  static Widget defaultItemBuilder(BuildContext context, item) => ListTile(
+      title: Text(item?.toString()?.contains('.') == true
+          ? _TextHelper.enumToString(item)
+          : item?.toString() ?? ''));
 
   static Widget defaultChildBuilder(BuildContext context, item) {
     Widget child;
