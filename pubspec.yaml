@@ -9,7 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  combos: ^1.0.0+2
+  # combos: ^1.0.0+2
+  combos: any
+
+dependency_overrides:
+  combos:
+    git:
+      url: https://github.com/creomobile/combos
+      ref: 1.1.0
 
 dev_dependencies:
   pedantic: ^1.8.0

@@ -504,25 +504,6 @@ class EnumEditor<T> extends Editor<T> {
     this.childBuilder = defaultChildBuilder,
     this.popupBuilder,
     this.getIsSelectable,
-    this.progressDecoratorBuilder = AwaitCombo.buildDefaultProgressDecorator,
-    this.refreshOnOpened = false,
-    this.waitChanged,
-    this.progressPosition = ProgressPosition.popup,
-    this.position = PopupPosition.bottomMatch,
-    this.offset,
-    this.autoMirror = true,
-    this.requiredSpace,
-    this.screenPadding = Combo.defaultScreenPadding,
-    this.autoOpen = PopupAutoOpen.tap,
-    this.autoClose = PopupAutoClose.tapOutsideWithChildIgnorePointer,
-    this.animation = PopupAnimation.fade,
-    this.animationDuration = Combo.defaultAnimationDuration,
-    this.openedChanged,
-    this.hoveredChanged,
-    this.focusColor,
-    this.hoverColor,
-    this.highlightColor,
-    this.splashColor,
     String title,
     T value,
     ValueChanged<T> onChanged,
@@ -538,25 +519,6 @@ class EnumEditor<T> extends Editor<T> {
   final PopupListItemBuilder<T> itemBuilder;
   final ListPopupBuilder<T> popupBuilder;
   final GetIsSelectable<T> getIsSelectable;
-  final ProgressDecoratorBuilder progressDecoratorBuilder;
-  final bool refreshOnOpened;
-  final ValueChanged<bool> waitChanged;
-  final ProgressPosition progressPosition;
-  final PopupPosition position;
-  final Offset offset;
-  final bool autoMirror;
-  final double requiredSpace;
-  final EdgeInsets screenPadding;
-  final PopupAutoOpen autoOpen;
-  final PopupAutoClose autoClose;
-  final PopupAnimation animation;
-  final Duration animationDuration;
-  final ValueChanged<bool> openedChanged;
-  final ValueChanged<bool> hoveredChanged;
-  final Color focusColor;
-  final Color hoverColor;
-  final Color highlightColor;
-  final Color splashColor;
 
   final _comboKey = GlobalKey<SelectorComboState>();
 
@@ -572,27 +534,8 @@ class EnumEditor<T> extends Editor<T> {
         itemBuilder: itemBuilder,
         childBuilder: childBuilder,
         onItemTapped: change,
-        popupBuilder: popupBuilder,
-        getIsSelectable: getIsSelectable,
-        progressDecoratorBuilder: progressDecoratorBuilder,
-        refreshOnOpened: refreshOnOpened,
-        waitChanged: waitChanged,
-        progressPosition: progressPosition,
-        position: position,
-        offset: offset,
-        autoMirror: autoMirror,
-        requiredSpace: requiredSpace,
-        screenPadding: screenPadding,
-        autoOpen: autoOpen,
-        autoClose: autoClose,
-        animation: animation,
-        animationDuration: animationDuration,
-        openedChanged: openedChanged,
-        hoveredChanged: hoveredChanged,
-        focusColor: focusColor,
-        hoverColor: hoverColor,
-        highlightColor: highlightColor,
-        splashColor: splashColor,
+        //popupBuilder: popupBuilder,
+        //getIsSelectable: getIsSelectable,
       );
 
   static String _getItemText(item) {

@@ -11,9 +11,11 @@ packages:
   combos:
     dependency: "direct main"
     description:
-      name: combos
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "."
+      ref: "1.1.0"
+      resolved-ref: "3d5cedc89e55ff32c91598f5095dd06e45138d9e"
+      url: "https://github.com/creomobile/combos"
+    source: git
     version: "1.0.0+2"
   cupertino_icons:
     dependency: "direct main"
