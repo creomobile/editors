@@ -1,187 +1,314 @@
 library editors;
 
 import 'package:combos/combos.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 // * abstractions
 
 const defaultEditorsDelay = Duration(milliseconds: 300);
 
-abstract class EditorBase<T> {
-  EditorBase({this.onChanged});
-  final ValueChanged<T> onChanged;
-  bool get enabled => true;
-  set enabled(bool value) {}
+enum TitlePlacement { none, label, placeholder, left, right, top }
 
-  List<EditorBase> _parents;
+class EditorParameters {
+  const EditorParameters(
+      {this.enabled, this.constraints, this.titlePlacement, this.titleStyle});
+
+  final bool enabled;
+  final BoxConstraints constraints;
+  final TitlePlacement titlePlacement;
+  final TextStyle titleStyle;
+
+  EditorParameters copyWith({
+    bool enabled,
+    BoxConstraints constraints,
+    TitlePlacement titlePlacement,
+    TextStyle titleStyle,
+  }) =>
+      EditorParameters(
+        enabled: enabled ?? this.enabled,
+        constraints: constraints ?? this.constraints,
+        titlePlacement: titlePlacement ?? this.titlePlacement,
+        titleStyle: titleStyle ?? this.titleStyle,
+      );
+}
+
+// Return true to cancel the notification bubbling. Return false (or null) to
+// allow the notification to continue to be dispatched to further ancestors.
+typedef EditorValueChanged = bool Function(Editor editor, dynamic value);
+typedef EditorParametersGetter = EditorParameters Function();
+
+class EditorsContext extends StatefulWidget {
+  const EditorsContext({
+    Key key,
+    this.parameters,
+    this.onValueChanged,
+    this.onValuesChanged,
+    @required this.child,
+  }) : super(key: key);
+  final EditorParameters parameters;
+  final EditorValueChanged onValueChanged;
+  final VoidCallback onValuesChanged;
+  final Widget child;
+
+  static EditorsContextData of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<EditorsContextData>();
+
+  @override
+  _EditorsContextState createState() => _EditorsContextState();
+}
+
+class _EditorsContextState extends State<EditorsContext> {
+  Object _token;
+  @override
+  Widget build(BuildContext context) {
+    final parentData = EditorsContext.of(context);
+    return EditorsContextData(
+      widget,
+      () {
+        final params = widget.parameters;
+        final parent = parentData?.parameters;
+        return params == null
+            ? parent
+            : parent == null
+                ? params
+                : EditorParameters(
+                    enabled: params.enabled ?? parent.enabled,
+                    constraints: params.constraints ?? parent.constraints,
+                    titlePlacement:
+                        params.titlePlacement ?? parent.titlePlacement,
+                    titleStyle: params.titleStyle ?? parent.titleStyle,
+                  );
+      },
+      // ignore: missing_return
+      (editor, value) {
+        final onValueChanged = widget.onValueChanged;
+        if (onValueChanged == null || !onValueChanged(editor, value)) {
+          parentData?.change(editor, value);
+        }
+        final onValuesChanged = widget.onValuesChanged;
+        if (onValuesChanged != null) {
+          final token = _token = Object();
+          SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+            if (token == _token && mounted) onValuesChanged();
+          });
+          // Future.delayed(Duration(milliseconds: 1)).then((_) {
+          //   if (token == _token && mounted) onValuesChanged();
+          // });
+        }
+      },
+    );
+  }
+}
+
+class EditorsContextData extends InheritedWidget {
+  EditorsContextData(this.widget, this._parametersGetter, this.change)
+      : super(child: widget.child);
+  final EditorsContext widget;
+  final EditorParametersGetter _parametersGetter;
+  final EditorValueChanged change;
+
+  EditorParameters get parameters => _parametersGetter();
+
+  @override
+  bool updateShouldNotify(EditorsContextData oldWidget) =>
+      widget.parameters != oldWidget.widget.parameters;
+}
+
+abstract class Editor<T> {
+  Editor({this.title, this.onChanged, this.value});
+  final _key = GlobalKey<_EditorState>();
+  String title;
+  final ValueChanged<T> onChanged;
+  T value;
+
+  static Editor of(BuildContext context) =>
+      context.findAncestorStateOfType<_EditorState>()?.editor;
+
+  EditorsContextData getContextData() {
+    final state = _key.currentState;
+    return state?.mounted == true
+        ? state.context.dependOnInheritedWidgetOfExactType<EditorsContextData>()
+        : null;
+  }
+
+  EditorParameters getParameters() => getContextData()?.parameters;
+
+  void change(T value) {
+    if (this.value == value) return;
+    this.value = value;
+    if (onChanged != null) onChanged(value);
+    final data = getContextData();
+    if (data == null) return;
+    data.change(this, value);
+    _key.currentState.safeSetState();
+  }
 
   @protected
-  void change(T value) {
-    _parents?.forEach((_) => _.change(value));
-    if (onChanged != null) onChanged(value);
-  }
-}
+  Widget buildBase(BuildContext context, EditorParameters parameters);
 
-abstract class EditorsGroup<T> extends EditorBase<T> {
-  EditorsGroup({ValueChanged<T> onChanged}) : super(onChanged: onChanged) {
-    editors.forEach(attach);
-  }
-
-  List<EditorBase<T>> get editors;
-
-  void attach(EditorBase editor) => (editor._parents ??= []).add(this);
-  void dettach(EditorBase editor) => editor._parents?.remove(this);
-
-  @override
-  bool get enabled => editors.first.enabled;
-  @override
-  set enabled(bool value) => editors.forEach((_) => _.enabled = value);
-}
-
-mixin VisualEditorMixin<T> on EditorBase<T> {
-  Widget build([BuildContext context]);
-}
-
-mixin ElementEditorMixin<T> on VisualEditorMixin<T> {
-  void initElement(String title, T value, bool enabled) {
-    _title = title;
-    this.value = value;
-    _enabled = enabled;
+  @protected
+  Widget buildConstrained(BuildContext context, EditorParameters parameters) {
+    final constraints = parameters?.constraints;
+    final child = buildBase(context, parameters);
+    return constraints == null
+        ? child
+        : ConstrainedBox(constraints: constraints, child: child);
   }
 
-  String _title;
-  T value;
-  String get title => _title;
-  bool _enabled;
-  bool get _isGroup => this is EditorsGroup;
-  @override
-  bool get enabled => _isGroup ? super.enabled : _enabled;
-  @override
-  set enabled(bool value) {
-    if (_isGroup) {
-      _enabled = value;
-    } else {
-      super.enabled = value;
+  @protected
+  Widget buildTitle(BuildContext context, EditorParameters parameters) =>
+      Text(title, style: parameters?.titleStyle);
+
+  @protected
+  Widget buildTitled(BuildContext context, EditorParameters parameters) {
+    final child = buildConstrained(context, parameters);
+    switch (parameters?.titlePlacement) {
+      case TitlePlacement.left:
+        return Row(children: [
+          buildTitle(context, parameters),
+          const SizedBox(width: 16),
+          child,
+        ]);
+      case TitlePlacement.right:
+        return Row(children: [
+          child,
+          const SizedBox(width: 16),
+          buildTitle(context, parameters),
+        ]);
+      case TitlePlacement.top:
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          buildTitle(context, parameters),
+          child,
+        ]);
+        break;
+      default:
+        return child;
     }
   }
+
+  Widget build() => _Editor(
+      key: _key,
+      editor: this,
+      builder: (context) => buildTitled(
+          context,
+          context
+              .dependOnInheritedWidgetOfExactType<EditorsContextData>()
+              ?.parameters));
 }
 
-abstract class ElementEditor<T> extends EditorBase<T>
-    with VisualEditorMixin<T>, ElementEditorMixin<T> {
-  ElementEditor(
-      {String title, T value, bool enabled = true, ValueChanged<T> onChanged})
-      : assert(enabled != null),
-        super(onChanged: onChanged) {
-    initElement(title, value, enabled);
-  }
-}
-
-abstract class ConstrainedEditor<T> extends ElementEditor<T> {
-  ConstrainedEditor({
-    this.constraints,
-    String title,
-    T value,
-    bool enabled = true,
-    ValueChanged<T> onChanged,
-  }) : super(
-          title: title,
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        );
-
-  final BoxConstraints constraints;
-
-  @protected
-  Widget buildConstrained([BuildContext context]);
-
+class _Editor extends StatefulWidget {
+  const _Editor({Key key, @required this.editor, @required this.builder})
+      : super(key: key);
+  final Editor editor;
+  final WidgetBuilder builder;
   @override
-  Widget build([BuildContext context]) {
-    final widget = buildConstrained(context);
-    return constraints == null
-        ? widget
-        : ConstrainedBox(constraints: constraints, child: widget);
-  }
+  _EditorState createState() => _EditorState();
+}
+
+class _EditorState extends State<_Editor> {
+  void safeSetState() => setState(() {});
+  Editor get editor => widget.editor;
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
 }
 
 // * string
 
-abstract class StringEditorBase<T> extends ConstrainedEditor<T> {
+abstract class StringEditorBase<T> extends Editor<T> {
   StringEditorBase({
     this.decoration,
+    this.textAlign,
     this.delay = defaultEditorsDelay,
-    BoxConstraints constraints = const BoxConstraints(maxWidth: 200),
     String title,
     T value,
-    bool enabled = true,
     ValueChanged<T> onChanged,
-  }) : super(
-          constraints: constraints,
-          title: title,
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        );
+  }) : super(title: title, value: value, onChanged: onChanged);
 
   final InputDecoration decoration;
+  final TextAlign textAlign;
   final Duration delay;
+
+  InputDecoration getDecoration(EditorParameters parameters) {
+    if (decoration != null) return decoration;
+    InputDecoration createLabelDecoration() =>
+        InputDecoration(labelText: title);
+
+    switch (parameters?.titlePlacement) {
+      case TitlePlacement.label:
+        return createLabelDecoration();
+      case TitlePlacement.placeholder:
+        return InputDecoration(hintText: title);
+      default:
+        return parameters?.titlePlacement == null
+            ? createLabelDecoration()
+            : null;
+    }
+  }
 }
 
 class StringEditor extends StringEditorBase<String> {
   StringEditor({
     InputDecoration decoration,
+    TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
-    BoxConstraints constraints = const BoxConstraints(maxWidth: 200),
     String title,
     String value,
-    bool enabled = true,
     ValueChanged<String> onChanged,
   }) : super(
           decoration: decoration,
+          textAlign: textAlign,
           delay: delay,
-          constraints: constraints,
           title: title,
           value: value,
-          enabled: enabled,
           onChanged: onChanged,
         );
 
   @override
-  Widget buildConstrained([BuildContext context]) => _StringEditor(
+  Widget buildBase(BuildContext context, EditorParameters parameters) =>
+      StringEditorInput(
         value: value,
-        onChanged: change,
-        enabled: enabled,
+        onChanged: (value) => change(value),
+        enabled: parameters?.enabled ?? true,
         title: title,
-        decoration: decoration,
+        decoration: getDecoration(parameters),
+        textAlign: textAlign ?? TextAlign.left,
         delay: delay,
       );
 }
 
-class _StringEditor extends StatefulWidget {
-  const _StringEditor({
+class StringEditorInput extends StatefulWidget {
+  const StringEditorInput({
     Key key,
     @required this.value,
     @required this.onChanged,
     @required this.enabled,
     @required this.title,
+    @required this.textAlign,
     @required this.decoration,
+    this.inputFormatters,
     @required this.delay,
-  }) : super(key: key);
+  })  : assert(textAlign != null),
+        assert(enabled != null),
+        super(key: key);
 
   final String value;
   final ValueChanged<String> onChanged;
   final bool enabled;
   final String title;
+  final TextAlign textAlign;
   final InputDecoration decoration;
+  final List<TextInputFormatter> inputFormatters;
   final Duration delay;
 
   @override
-  _StringEditorState createState() => _StringEditorState(value);
+  StringEditorInputState createState() => StringEditorInputState(value);
 }
 
-class _StringEditorState extends State<_StringEditor> {
-  _StringEditorState(String value)
+class StringEditorInputState extends State<StringEditorInput> {
+  StringEditorInputState(String value)
       : _controller = TextEditingController(text: value);
 
   final TextEditingController _controller;
@@ -206,7 +333,7 @@ class _StringEditorState extends State<_StringEditor> {
   }
 
   @override
-  void didUpdateWidget(_StringEditor oldWidget) {
+  void didUpdateWidget(StringEditorInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     final value = widget.value;
     if (value != oldWidget.value && value != _controller.text) {
@@ -218,15 +345,13 @@ class _StringEditorState extends State<_StringEditor> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final decoration = widget.decoration ?? widget.title?.isNotEmpty == true
-        ? InputDecoration(labelText: widget.title)
-        : null;
-    return TextField(
+  Widget build(BuildContext context) => TextField(
         controller: _controller,
         enabled: widget.enabled,
-        decoration: decoration);
-  }
+        decoration: widget.decoration ?? const InputDecoration(),
+        inputFormatters: widget.inputFormatters,
+        textAlign: widget.textAlign,
+      );
 
   @override
   void dispose() {
@@ -237,72 +362,146 @@ class _StringEditorState extends State<_StringEditor> {
 
 // * int
 
+typedef IncrementerDecoratorBuilder = Widget Function(
+    BuildContext context,
+    Widget input,
+    IntEditor editor,
+    EditorParameters parameters,
+    WidgetBuilder titleBuilder,
+    VoidCallback inc,
+    VoidCallback dec);
+
 class IntEditor extends StringEditorBase<int> {
   IntEditor({
-    this.withIncrementer = false,
+    this.minValue,
+    this.maxValue,
+    this.withIncrementer = true,
+    this.incrementerDecoratorBuilder = buildDefaultIncrementerDecorator,
     InputDecoration decoration,
+    TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
-    BoxConstraints constraints = const BoxConstraints(maxWidth: 200),
     String title,
     int value,
-    bool enabled = true,
     ValueChanged<int> onChanged,
-  }) : super(
+  })  : assert(withIncrementer != null),
+        assert(!withIncrementer || incrementerDecoratorBuilder != null),
+        super(
           decoration: decoration,
+          textAlign: textAlign,
           delay: delay,
-          constraints: constraints,
           title: title,
           value: value,
-          enabled: enabled,
           onChanged: onChanged,
         );
 
-  final bool withIncrementer;
+  int minValue;
+  int maxValue;
+  bool withIncrementer;
+  final IncrementerDecoratorBuilder incrementerDecoratorBuilder;
 
   @override
-  Widget buildConstrained([BuildContext context]) => _StringEditor(
-        value: value.toString(),
-        onChanged: change == null ? null : (_) => change(int.tryParse(_)),
-        enabled: enabled,
-        title: title,
-        decoration: decoration,
-        delay: delay,
-      );
+  Widget buildBase(BuildContext context, EditorParameters parameters) {
+    final input = StringEditorInput(
+      key: ValueKey(minValue),
+      value: value?.toString() ?? '',
+      onChanged: change == null ? null : (_) => change(int.tryParse(_)),
+      enabled: parameters?.enabled ?? true,
+      title: title,
+      decoration: getDecoration(parameters),
+      textAlign:
+          textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
+      inputFormatters: [
+        _IntTextInputFormatter(minValue: minValue, maxValue: maxValue)
+      ],
+      delay: delay,
+    );
+
+    return withIncrementer && incrementerDecoratorBuilder != null
+        ? incrementerDecoratorBuilder(
+            context,
+            input,
+            this,
+            parameters,
+            (context) => buildTitle(context, parameters),
+            value == null || maxValue == null || value < maxValue
+                ? () => change((value ?? minValue ?? 0) + 1)
+                : null,
+            value == null || minValue == null || value > minValue
+                ? () => change((value ?? minValue ?? 0) - 1)
+                : null,
+          )
+        : input;
+  }
+
+  @override
+  Widget buildTitled(BuildContext context, EditorParameters parameters) =>
+      parameters?.titlePlacement != TitlePlacement.top || !withIncrementer
+          ? super.buildTitled(context, parameters)
+          : super.buildConstrained(context, parameters);
+
+  static Widget buildDefaultIncrementerDecorator(
+      BuildContext context,
+      Widget input,
+      IntEditor editor,
+      EditorParameters parameters,
+      WidgetBuilder titleBuilder,
+      VoidCallback inc,
+      VoidCallback dec) {
+    return Row(children: [
+      IconButton(icon: Icon(Icons.remove), onPressed: dec),
+      Expanded(
+          child: parameters?.titlePlacement == TitlePlacement.top
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [titleBuilder(context), input])
+              : input),
+      IconButton(icon: Icon(Icons.add), onPressed: inc),
+    ]);
+  }
 }
 
 // * bool
 
-class BoolEditor extends ConstrainedEditor<bool> {
-  BoolEditor({
-    BoxConstraints constraints = const BoxConstraints(maxWidth: 200),
-    String title,
-    bool value,
-    bool enabled = true,
-    ValueChanged<bool> onChanged,
-  }) : super(
-          constraints: constraints,
-          title: title,
-          value: value,
-          enabled: enabled,
-          onChanged: onChanged,
-        );
+class BoolEditor extends Editor<bool> {
+  BoolEditor({String title, @required bool value, ValueChanged<bool> onChanged})
+      : assert(value != null),
+        super(title: title, value: value, onChanged: onChanged);
+
+  ListTileControlAffinity getBoolPlacement(
+      BuildContext context, EditorParameters parameters) {
+    switch (parameters?.titlePlacement) {
+      case TitlePlacement.left:
+        return ListTileControlAffinity.trailing;
+      case TitlePlacement.right:
+        return ListTileControlAffinity.leading;
+      default:
+        return kIsWeb
+            ? ListTileControlAffinity.leading
+            : ListTileControlAffinity.platform;
+    }
+  }
 
   @override
-  Widget buildConstrained([BuildContext context]) => CheckboxListTile(
+  Widget buildTitled(BuildContext context, EditorParameters parameters) =>
+      super.buildConstrained(context, parameters);
+
+  @override
+  Widget buildBase(BuildContext context, EditorParameters parameters) =>
+      CheckboxListTile(
         value: value,
-        onChanged: change,
-        title: Text(title),
-        controlAffinity: ListTileControlAffinity.leading,
+        onChanged: parameters?.enabled ?? true ? change : null,
+        title: title == null ? null : Text(title),
+        controlAffinity: getBoolPlacement(context, parameters),
       );
 }
 
 // * enum
 
-class EnumEditor<T> extends ConstrainedEditor<T> {
+class EnumEditor<T> extends Editor<T> {
   EnumEditor({
     @required this.getList,
     this.itemBuilder = defaultItemBuilder,
-    this.childBuilder,
+    this.childBuilder = defaultChildBuilder,
     this.popupBuilder,
     this.getIsSelectable,
     this.progressDecoratorBuilder = AwaitCombo.buildDefaultProgressDecorator,
@@ -324,21 +523,17 @@ class EnumEditor<T> extends ConstrainedEditor<T> {
     this.hoverColor,
     this.highlightColor,
     this.splashColor,
-    BoxConstraints constraints = const BoxConstraints(maxWidth: 200),
     String title,
     T value,
-    bool enabled = true,
     ValueChanged<T> onChanged,
   })  : assert(getList != null),
         super(
-          constraints: constraints,
           title: title,
           value: value,
-          enabled: enabled,
           onChanged: onChanged,
         );
 
-  final PopupGetList getList;
+  final PopupGetList<T> getList;
   final PopupListItemBuilder<T> childBuilder;
   final PopupListItemBuilder<T> itemBuilder;
   final ListPopupBuilder<T> popupBuilder;
@@ -363,14 +558,15 @@ class EnumEditor<T> extends ConstrainedEditor<T> {
   final Color highlightColor;
   final Color splashColor;
 
-  final _key = GlobalKey<SelectorComboState>();
+  final _comboKey = GlobalKey<SelectorComboState>();
 
-  void open() => _key.currentState?.open();
-  void close() => _key.currentState?.close();
+  void open() => _comboKey.currentState?.open();
+  void close() => _comboKey.currentState?.close();
 
   @override
-  Widget buildConstrained([BuildContext context]) => SelectorCombo<T>(
-        key: _key,
+  Widget buildBase(BuildContext context, EditorParameters parameters) =>
+      SelectorCombo<T>(
+        key: _comboKey,
         selected: value,
         getList: getList,
         itemBuilder: itemBuilder,
@@ -400,13 +596,37 @@ class EnumEditor<T> extends ConstrainedEditor<T> {
       );
 
   static Widget defaultItemBuilder(BuildContext context, item) =>
-      ListTile(title: Text(TextHelper.enumToString(item)));
+      ListTile(title: Text(_TextHelper.enumToString(item)));
+
+  static Widget defaultChildBuilder(BuildContext context, item) {
+    Widget child;
+    if (item == null) {
+      final editor = Editor.of(context);
+      if (editor != null) {
+        final parameters = editor.getParameters();
+        if (parameters?.titlePlacement == null ||
+            parameters.titlePlacement == TitlePlacement.label ||
+            parameters.titlePlacement == TitlePlacement.placeholder) {
+          child = Text(editor?.title ?? '',
+              style: const TextStyle(color: Colors.grey));
+        }
+      }
+    }
+    return Row(
+      children: [
+        Expanded(
+            child:
+                ListTile(title: child ?? Text(_TextHelper.enumToString(item)))),
+        const Icon(Icons.arrow_drop_down),
+      ],
+    );
+  }
 }
 
 // * helpers
 
-class IntTextInputFormatter extends TextInputFormatter {
-  IntTextInputFormatter({this.minValue, this.maxValue});
+class _IntTextInputFormatter extends TextInputFormatter {
+  _IntTextInputFormatter({this.minValue, this.maxValue});
 
   final int minValue;
   final int maxValue;
@@ -435,7 +655,7 @@ class IntTextInputFormatter extends TextInputFormatter {
   }
 }
 
-class TextHelper {
+class _TextHelper {
   static String _camelToWords(String value) {
     final codes = value.runes
         .skip(1)

@@ -9,7 +9,7 @@ packages:
     source: hosted
     version: "1.14.11"
   combos:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: combos
       url: "https://pub.dartlang.org"
@@ -28,7 +28,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.0.2"
   flutter:
     dependency: "direct main"
     description: flutter
