@@ -121,14 +121,6 @@ class DemoItemState<TProperties extends ElementProperties>
               BoxConstraints(maxWidth: properties.maxWidth.value.toDouble()),
           titlePlacement: properties.titlePlacement.value,
         ),
-        // onValuesChanged: () {
-        //   setState(() {});
-        //   return false;
-        // },
-        // onValueChanged: (editor, value) {
-        //   //assignValue(editor, properties);
-        //   return true;
-        // },
         child: super.buildChild());
   }
 

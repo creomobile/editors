@@ -1,3 +1,7 @@
+## [0.0.2+4] - 3/15/2020.
+
+* minor fix in EnumEditor
+
 ## [0.0.2+3] - 3/15/2020.
 
 * minor fix in EnumEditor

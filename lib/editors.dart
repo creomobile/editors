@@ -595,10 +595,14 @@ class EnumEditor<T> extends Editor<T> {
         splashColor: splashColor,
       );
 
-  static Widget defaultItemBuilder(BuildContext context, item) => ListTile(
-      title: Text(item?.toString()?.contains('.') == true
-          ? _TextHelper.enumToString(item)
-          : item?.toString() ?? ''));
+  static String _getItemText(item) {
+    final s = item?.toString();
+    if (s?.isNotEmpty != true) return '';
+    return s.contains('.') ? _TextHelper.enumToString(item) : s;
+  }
+
+  static Widget defaultItemBuilder(BuildContext context, item) =>
+      ListTile(title: Text(_getItemText(item)));
 
   static Widget defaultChildBuilder(BuildContext context, item) {
     Widget child;
@@ -611,7 +615,7 @@ class EnumEditor<T> extends Editor<T> {
       child =
           Text(editor?.title ?? '', style: const TextStyle(color: Colors.grey));
     }
-    final tile = ListTile(title: child ?? Text(_TextHelper.enumToString(item)));
+    final tile = ListTile(title: child ?? Text(_getItemText(item)));
     return Row(
       children: [
         Expanded(
