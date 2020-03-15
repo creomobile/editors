@@ -620,7 +620,7 @@ class EnumEditor<T> extends Editor<T> {
                     IgnorePointer(
                         child: Text(
                       editor?.title ?? '',
-                      style: const TextStyle(color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ))
                   ])),
         const Icon(Icons.arrow_drop_down),
