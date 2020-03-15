@@ -10,9 +10,14 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^0.1.3
+  combos: ^1.0.0+2
+  editors: any
+  demo_items:
+    path: ../demo_items
+
+dependency_overrides:
   editors:
     path: ../
-  combos: ^1.0.0+2
 
 dev_dependencies:
   pedantic: ^1.8.0

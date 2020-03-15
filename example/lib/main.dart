@@ -1,6 +1,7 @@
 import 'package:combos/combos.dart';
 import 'package:editors/editors.dart';
 import 'package:flutter/material.dart';
+import 'package:demo_items/demo_items.dart';
 
 void main() => runApp(MyApp());
 
@@ -17,6 +18,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final stringEditor = StringEditor(title: 'String value');
+  final intEditor = IntEditor(title: 'Int value');
+  final boolEditor = BoolEditor(title: 'Bool value', value: false);
+  final enumEditor = EnumEditor<MainAxisAlignment>(
+      title: 'Enum value', getList: () => [null, ...MainAxisAlignment.values]);
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Editors Sample App')),
@@ -24,54 +31,77 @@ class _HomePageState extends State<HomePage> {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: 550),
             child: ListView(padding: const EdgeInsets.all(16), children: [
-              DemoItem<StringEditor, StringProperties>(
-                editor: StringEditor(title: 'String value'),
+              DemoItem<StringProperties>(
                 properties: StringProperties(),
-                assignValue: (editor, properties) =>
-                    properties.value.value = editor.value,
-                assignProperties: (editor, properties) {
-                  editor.value = properties.value.value;
-                  return const EditorParameters();
-                },
+                childBuilder: (properties) => EditorsContext(
+                  onValueChanged: (editor, value) {
+                    properties.value.value = value;
+                    return true;
+                  },
+                  child: () {
+                    stringEditor.value = properties.value.value;
+                    return stringEditor.build();
+                  }(),
+                ),
               ),
               const SizedBox(height: 16),
-              DemoItem<IntEditor, IntProperties>(
-                editor: IntEditor(title: 'Int value'),
+              DemoItem<IntProperties>(
                 properties: IntProperties(),
-                assignValue: (editor, properties) =>
-                    properties.value.value = editor.value,
-                assignProperties: (editor, properties) {
-                  editor.value = properties.value.value;
-                  editor.minValue = properties.minValue.value;
-                  editor.maxValue = properties.maxValue.value;
-                  editor.withIncrementer = properties.withIncrementer.value;
-                  return const EditorParameters();
-                },
+                childBuilder: (properties) => EditorsContext(
+                  onValueChanged: (editor, value) {
+                    properties.value.value = value;
+                    return true;
+                  },
+                  child: () {
+                    intEditor.value = properties.value.value;
+                    intEditor.minValue = properties.minValue.value;
+                    intEditor.maxValue = properties.maxValue.value;
+                    intEditor.withIncrementer =
+                        properties.withIncrementer.value;
+                    return intEditor.build();
+                  }(),
+                ),
               ),
               const SizedBox(height: 16),
-              DemoItem<BoolEditor, BoolProperties>(
-                editor: BoolEditor(title: 'Bool value', value: false),
+              DemoItem<BoolProperties>(
                 properties: BoolProperties(),
-                assignValue: (editor, properties) =>
-                    properties.value.value = editor.value,
-                assignProperties: (editor, properties) {
-                  editor.value = properties.value.value;
-                  return const EditorParameters();
-                },
+                childBuilder: (properties) => EditorsContext(
+                  onValueChanged: (editor, value) {
+                    properties.value.value = value;
+                    return true;
+                  },
+                  child: () {
+                    boolEditor.value = properties.value.value;
+                    return boolEditor.build();
+                  }(),
+                ),
               ),
               const SizedBox(height: 16),
-              DemoItem<EnumEditor<MainAxisAlignment>, EnumProperties>(
-                editor: EnumEditor<MainAxisAlignment>(
-                    title: 'Enum value',
-                    getList: () => [null, ...MainAxisAlignment.values]),
+              DemoItem<EnumProperties>(
                 properties: EnumProperties(),
-                assignValue: (editor, properties) =>
-                    properties.value.value = editor.value,
-                assignProperties: (editor, properties) {
-                  editor.value = properties.value.value;
-                  return const EditorParameters();
-                },
+                childBuilder: (properties) => EditorsContext(
+                  onValueChanged: (editor, value) {
+                    properties.value.value = value;
+                    return true;
+                  },
+                  child: () {
+                    enumEditor.value = properties.value.value;
+                    return enumEditor.build();
+                  }(),
+                ),
               ),
+              // DemoItem<EnumEditor<MainAxisAlignment>, EnumProperties>(
+              //   editor: EnumEditor<MainAxisAlignment>(
+              //       title: 'Enum value',
+              //       getList: () => [null, ...MainAxisAlignment.values]),
+              //   properties: EnumProperties(),
+              //   assignValue: (editor, properties) =>
+              //       properties.value.value = editor.value,
+              //   assignProperties: (editor, properties) {
+              //     editor.value = properties.value.value;
+              //     return const EditorParameters();
+              //   },
+              // ),
             ]),
           ),
         ),
@@ -83,85 +113,49 @@ typedef AssignValue<TEditor, TProperties> = void Function(
 typedef AssignProperties<TEditor, TProperties> = EditorParameters Function(
     TEditor editor, TProperties properties);
 
-class DemoItem<TEditor extends Editor, TProperties extends ElementProperties>
-    extends StatefulWidget {
+typedef ChildBuilder<TProperties> = Widget Function(TProperties properties);
+
+class DemoItem<TProperties extends ElementProperties>
+    extends DemoItemBase<TProperties> {
   const DemoItem({
     Key key,
-    @required this.editor,
-    @required this.properties,
-    @required this.assignValue,
-    @required this.assignProperties,
-  }) : super(key: key);
-
-  final TEditor editor;
-  final TProperties properties;
-  final AssignValue<TEditor, TProperties> assignValue;
-  final AssignProperties<TEditor, TProperties> assignProperties;
-
+    @required TProperties properties,
+    @required ChildBuilder<TProperties> childBuilder,
+  }) : super(key: key, properties: properties, childBuilder: childBuilder);
   @override
-  _DemoItemState createState() => _DemoItemState<TEditor, TProperties>();
+  DemoItemState<TProperties> createState() => DemoItemState<TProperties>();
 }
 
-class _DemoItemState<TEditor extends Editor,
-        TProperties extends ElementProperties>
-    extends State<DemoItem<TEditor, TProperties>> {
-  final _comboKey = GlobalKey<ComboState>();
-  EditorParameters _parameters =
-      const EditorParameters(constraints: BoxConstraints(maxWidth: 200));
+class DemoItemState<TProperties extends ElementProperties>
+    extends DemoItemStateBase<TProperties> {
+  @override
+  Widget buildChild() {
+    final properties = widget.properties;
+    return EditorsContext(
+        parameters: EditorParameters(
+          enabled: properties.enabled.value,
+          constraints:
+              BoxConstraints(maxWidth: properties.maxWidth.value.toDouble()),
+          titlePlacement: properties.titlePlacement.value,
+        ),
+        // onValuesChanged: () {
+        //   setState(() {});
+        //   return false;
+        // },
+        // onValueChanged: (editor, value) {
+        //   //assignValue(editor, properties);
+        //   return true;
+        // },
+        child: super.buildChild());
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final editor = widget.editor;
-    final properties = widget.properties;
-    final assignValue = widget.assignValue;
-    final assignProperties = widget.assignProperties;
-
-    return Row(children: [
-      EditorsContext(
-          parameters: _parameters,
-          onValueChanged: (editor, value) {
-            assignValue(editor, properties);
-            return true;
-          },
-          child: editor.build()),
-      const SizedBox(width: 16),
-      Combo(
-        key: _comboKey,
-        autoOpen: PopupAutoOpen.none,
-        position: PopupPosition.right,
-        child: IconButton(
-          icon: const Icon(Icons.tune),
-          color: Colors.blueAccent,
-          onPressed: () => _comboKey.currentState.open(),
-        ),
-        popupBuilder: (context, mirrored) => ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height / 3, maxWidth: 232),
-          child: Material(
-            elevation: 4,
-            child: EditorsContext(
-              onValueChanged: (_, __) {
-                _parameters = assignProperties(editor, properties).copyWith(
-                  enabled: properties.enabled.value,
-                  constraints: BoxConstraints(
-                      maxWidth: properties.maxWidth.value.toDouble()),
-                  titlePlacement: properties.titlePlacement.value,
-                );
-                setState(() {});
-                return true;
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                shrinkWrap: true,
-                physics: ClampingScrollPhysics(),
-                children: properties.editors.map((e) => e.build()).toList(),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ]);
-  }
+  Widget buildProperties() => ListView(
+        padding: const EdgeInsets.all(16),
+        shrinkWrap: true,
+        physics: ClampingScrollPhysics(),
+        children: widget.properties.editors.map((e) => e.build()).toList(),
+      );
 }
 
 class ElementProperties {
