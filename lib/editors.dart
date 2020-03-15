@@ -600,23 +600,29 @@ class EnumEditor<T> extends Editor<T> {
 
   static Widget defaultChildBuilder(BuildContext context, item) {
     Widget child;
-    if (item == null) {
-      final editor = Editor.of(context);
-      if (editor != null) {
-        final parameters = editor.getParameters();
-        if (parameters?.titlePlacement == null ||
-            parameters.titlePlacement == TitlePlacement.label ||
-            parameters.titlePlacement == TitlePlacement.placeholder) {
-          child = Text(editor?.title ?? '',
-              style: const TextStyle(color: Colors.grey));
-        }
-      }
+    final editor = Editor.of(context);
+    final parameters = editor.getParameters();
+    final hasTitle = editor != null && parameters?.titlePlacement == null ||
+        parameters.titlePlacement == TitlePlacement.label ||
+        parameters.titlePlacement == TitlePlacement.placeholder;
+    if (item == null && editor != null && hasTitle) {
+      child =
+          Text(editor?.title ?? '', style: const TextStyle(color: Colors.grey));
     }
+    final tile = ListTile(title: child ?? Text(_TextHelper.enumToString(item)));
     return Row(
       children: [
         Expanded(
-            child:
-                ListTile(title: child ?? Text(_TextHelper.enumToString(item)))),
+            child: item == null || !hasTitle
+                ? tile
+                : Stack(children: [
+                    tile,
+                    IgnorePointer(
+                        child: Text(
+                      editor?.title ?? '',
+                      style: const TextStyle(color: Colors.grey),
+                    ))
+                  ])),
         const Icon(Icons.arrow_drop_down),
       ],
     );

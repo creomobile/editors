@@ -13,7 +13,7 @@ dependencies:
   combos: ^1.0.0+2
   editors: any
   demo_items:
-    path: ../demo_items
+    git: https://github.com/creomobile/demo_items
 
 dependency_overrides:
   editors:

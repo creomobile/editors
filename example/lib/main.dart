@@ -27,10 +27,10 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Editors Sample App')),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 550),
-            child: ListView(padding: const EdgeInsets.all(16), children: [
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
               DemoItem<StringProperties>(
                 properties: StringProperties(),
                 childBuilder: (properties) => EditorsContext(
@@ -90,28 +90,11 @@ class _HomePageState extends State<HomePage> {
                   }(),
                 ),
               ),
-              // DemoItem<EnumEditor<MainAxisAlignment>, EnumProperties>(
-              //   editor: EnumEditor<MainAxisAlignment>(
-              //       title: 'Enum value',
-              //       getList: () => [null, ...MainAxisAlignment.values]),
-              //   properties: EnumProperties(),
-              //   assignValue: (editor, properties) =>
-              //       properties.value.value = editor.value,
-              //   assignProperties: (editor, properties) {
-              //     editor.value = properties.value.value;
-              //     return const EditorParameters();
-              //   },
-              // ),
-            ]),
+            ],
           ),
-        ),
+        ]),
       );
 }
-
-typedef AssignValue<TEditor, TProperties> = void Function(
-    TEditor editor, TProperties properties);
-typedef AssignProperties<TEditor, TProperties> = EditorParameters Function(
-    TEditor editor, TProperties properties);
 
 typedef ChildBuilder<TProperties> = Widget Function(TProperties properties);
 

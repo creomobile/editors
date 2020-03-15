@@ -25,9 +25,11 @@ packages:
   demo_items:
     dependency: "direct main"
     description:
-      path: "../demo_items"
-      relative: true
-    source: path
+      path: "."
+      ref: HEAD
+      resolved-ref: f0df03be9fc315a9a2d813f9de6d3781d5ae726b
+      url: "https://github.com/creomobile/demo_items"
+    source: git
     version: "0.0.1"
   editors:
     dependency: "direct main"
@@ -35,7 +37,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.2"
+    version: "0.0.2+1"
   flutter:
     dependency: "direct main"
     description: flutter
