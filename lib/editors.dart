@@ -502,7 +502,7 @@ class EnumEditor<T> extends Editor<T> {
     @required this.getList,
     this.itemBuilder = defaultItemBuilder,
     this.childBuilder = defaultChildBuilder,
-    this.popupBuilder,
+    //this.popupBuilder,
     this.getIsSelectable,
     String title,
     T value,
@@ -517,7 +517,7 @@ class EnumEditor<T> extends Editor<T> {
   final PopupGetList<T> getList;
   final PopupListItemBuilder<T> childBuilder;
   final PopupListItemBuilder<T> itemBuilder;
-  final ListPopupBuilder<T> popupBuilder;
+  //final ListPopupBuilder<T> popupBuilder;
   final GetIsSelectable<T> getIsSelectable;
 
   final _comboKey = GlobalKey<SelectorComboState>();
