@@ -544,10 +544,12 @@ class EnumEditor<T> extends Editor<T> {
     return s.contains('.') ? _TextHelper.enumToString(item) : s;
   }
 
-  static Widget defaultItemBuilder(BuildContext context, item) =>
+  static Widget defaultItemBuilder(
+          BuildContext context, ComboParameters parameters, item) =>
       ListTile(title: Text(_getItemText(item)));
 
-  static Widget defaultChildBuilder(BuildContext context, item) {
+  static Widget defaultChildBuilder(
+      BuildContext context, ComboParameters parameters, item) {
     Widget child;
     final editor = Editor.of(context);
     final parameters = editor.getParameters();
