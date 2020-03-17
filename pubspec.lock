@@ -11,12 +11,10 @@ packages:
   combos:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "1.1.0"
-      resolved-ref: d4c06f591b9cf0adb8abc5a034f0ec9be74accba
-      url: "https://github.com/creomobile/combos"
-    source: git
-    version: "1.0.0+2"
+      name: combos
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.1.0"
   flutter:
     dependency: "direct main"
     description: flutter

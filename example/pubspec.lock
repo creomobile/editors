@@ -11,12 +11,10 @@ packages:
   combos:
     dependency: "direct main"
     description:
-      path: "."
-      ref: "1.1.0"
-      resolved-ref: d4c06f591b9cf0adb8abc5a034f0ec9be74accba
-      url: "https://github.com/creomobile/combos"
-    source: git
-    version: "1.0.0+2"
+      name: combos
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.1.0"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -29,7 +27,7 @@ packages:
     description:
       path: "."
       ref: HEAD
-      resolved-ref: f0df03be9fc315a9a2d813f9de6d3781d5ae726b
+      resolved-ref: d563693800fdc6cb059d4bea18eca5810df2aa09
       url: "https://github.com/creomobile/demo_items"
     source: git
     version: "0.0.1"
