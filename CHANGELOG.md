@@ -1,3 +1,7 @@
+## [0.0.3] - 3/17/2020.
+
+* use combos 1.1.0
+
 ## [0.0.2+4] - 3/15/2020.
 
 * minor fix in EnumEditor
