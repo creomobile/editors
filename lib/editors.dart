@@ -561,22 +561,20 @@ class EnumEditor<T> extends Editor<T> {
           Text(editor?.title ?? '', style: const TextStyle(color: Colors.grey));
     }
     final tile = ListTile(title: child ?? Text(_getItemText(item)));
-    return Row(
-      children: [
-        Expanded(
-            child: item == null || !hasTitle
-                ? tile
-                : Stack(children: [
-                    tile,
-                    IgnorePointer(
-                        child: Text(
-                      editor?.title ?? '',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ))
-                  ])),
-        const Icon(Icons.arrow_drop_down),
-      ],
-    );
+    return item == null || !hasTitle
+        ? tile
+        : Stack(children: [
+            tile,
+            Positioned(
+              top: 2,
+              left: 2,
+              child: IgnorePointer(
+                  child: Text(
+                editor?.title ?? '',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              )),
+            )
+          ]);
   }
 }
 
