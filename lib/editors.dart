@@ -502,7 +502,6 @@ class EnumEditor<T> extends Editor<T> {
     @required this.getList,
     this.itemBuilder = defaultItemBuilder,
     this.childBuilder = defaultChildBuilder,
-    //this.popupBuilder,
     this.getIsSelectable,
     String title,
     T value,
@@ -517,7 +516,6 @@ class EnumEditor<T> extends Editor<T> {
   final PopupGetList<T> getList;
   final PopupListItemBuilder<T> childBuilder;
   final PopupListItemBuilder<T> itemBuilder;
-  //final ListPopupBuilder<T> popupBuilder;
   final GetIsSelectable<T> getIsSelectable;
 
   final _comboKey = GlobalKey<SelectorComboState>();
@@ -527,15 +525,52 @@ class EnumEditor<T> extends Editor<T> {
 
   @override
   Widget buildBase(BuildContext context, EditorParameters parameters) =>
-      SelectorCombo<T>(
-        key: _comboKey,
-        selected: value,
-        getList: getList,
-        itemBuilder: itemBuilder,
-        childBuilder: childBuilder,
-        onItemTapped: change,
-        //popupBuilder: popupBuilder,
-        //getIsSelectable: getIsSelectable,
+      ComboContext(
+        parameters: ComboParameters(
+          enabled: parameters?.enabled != false,
+          childDecoratorBuilder: (context, comboParameters, opened, child) {
+            final theme = Theme.of(context);
+            final decoration = InputDecoration(
+                    labelText: parameters?.titlePlacement == null ||
+                            parameters?.titlePlacement == TitlePlacement.label
+                        ? title
+                        : null,
+                    hintText:
+                        parameters?.titlePlacement == TitlePlacement.placeholder
+                            ? title
+                            : null,
+                    border: OutlineInputBorder())
+                .applyDefaults(theme.inputDecorationTheme)
+                .copyWith(
+                  enabled: parameters?.enabled != false,
+                );
+            return Stack(
+              children: [
+                Material(
+                    borderRadius:
+                        (decoration.border as OutlineInputBorder).borderRadius,
+                    child: child),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: InputDecorator(
+                        decoration: decoration,
+                        isFocused: opened,
+                        isEmpty: value == null,
+                        expands: true),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        child: SelectorCombo<T>(
+          key: _comboKey,
+          selected: value,
+          getList: getList,
+          itemBuilder: itemBuilder,
+          childBuilder: childBuilder,
+          onItemTapped: change,
+        ),
       );
 
   static String _getItemText(item) {
@@ -549,33 +584,10 @@ class EnumEditor<T> extends Editor<T> {
       ListTile(title: Text(_getItemText(item)));
 
   static Widget defaultChildBuilder(
-      BuildContext context, ComboParameters parameters, item) {
-    Widget child;
-    final editor = Editor.of(context);
-    final parameters = editor.getParameters();
-    final hasTitle = editor != null && parameters?.titlePlacement == null ||
-        parameters.titlePlacement == TitlePlacement.label ||
-        parameters.titlePlacement == TitlePlacement.placeholder;
-    if (item == null && editor != null && hasTitle) {
-      child =
-          Text(editor?.title ?? '', style: const TextStyle(color: Colors.grey));
-    }
-    final tile = ListTile(title: child ?? Text(_getItemText(item)));
-    return item == null || !hasTitle
-        ? tile
-        : Stack(children: [
-            tile,
-            Positioned(
-              top: 2,
-              left: 2,
-              child: IgnorePointer(
-                  child: Text(
-                editor?.title ?? '',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              )),
-            )
-          ]);
-  }
+          BuildContext context, ComboParameters parameters, item) =>
+      ListTile(
+          enabled: Editor.of(context).getParameters()?.enabled != false,
+          title: Text(_getItemText(item)));
 }
 
 // * helpers
