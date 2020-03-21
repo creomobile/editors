@@ -497,6 +497,15 @@ class BoolEditor extends Editor<bool> {
 
 // * enum
 
+/// Signature for [EnumEditor.childBuilder], [EnumEditor.itemBuilder].
+/// May return [Widget] or any object.
+/// If it returns [Widget] it will be use to display the object
+/// If it returns non [Widget] or null, returned object will be displayed as
+/// [ListTile] with the title as [Object.toString] text
+/// If [Object.toString] value contains one '.' symbol it will be parsed as
+/// enum value
+typedef EnumItemBuilder<T> = Function(BuildContext context, T item);
+
 class EnumEditor<T> extends Editor<T> {
   EnumEditor({
     @required this.getList,
@@ -514,8 +523,8 @@ class EnumEditor<T> extends Editor<T> {
         );
 
   final PopupGetList<T> getList;
-  final PopupListItemBuilder<T> childBuilder;
-  final PopupListItemBuilder<T> itemBuilder;
+  final EnumItemBuilder<T> childBuilder;
+  final EnumItemBuilder<T> itemBuilder;
   final GetIsSelectable<T> getIsSelectable;
 
   final _comboKey = GlobalKey<SelectorComboState>();
@@ -524,70 +533,82 @@ class EnumEditor<T> extends Editor<T> {
   void close() => _comboKey.currentState?.close();
 
   @override
-  Widget buildBase(BuildContext context, EditorParameters parameters) =>
-      ComboContext(
-        parameters: ComboParameters(
-          enabled: parameters?.enabled != false,
-          childDecoratorBuilder: (context, comboParameters, opened, child) {
-            final theme = Theme.of(context);
-            final decoration = InputDecoration(
-                    labelText: parameters?.titlePlacement == null ||
-                            parameters?.titlePlacement == TitlePlacement.label
-                        ? title
-                        : null,
-                    hintText:
-                        parameters?.titlePlacement == TitlePlacement.placeholder
-                            ? title
-                            : null,
-                    border: OutlineInputBorder())
-                .applyDefaults(theme.inputDecorationTheme)
-                .copyWith(
-                  enabled: parameters?.enabled != false,
-                );
-            return Stack(
-              children: [
-                Material(
-                    borderRadius:
-                        (decoration.border as OutlineInputBorder).borderRadius,
-                    child: child),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: InputDecorator(
-                        decoration: decoration,
-                        isFocused: opened,
-                        isEmpty: value == null,
-                        expands: true),
-                  ),
+  Widget buildBase(BuildContext context, EditorParameters parameters) {
+    final enabled = parameters?.enabled != false;
+    return ComboContext(
+      parameters: ComboParameters(
+        enabled: enabled,
+        childDecoratorBuilder: (context, comboParameters, opened, child) {
+          final theme = Theme.of(context);
+          final decoration = InputDecoration(
+                  labelText: parameters?.titlePlacement == null ||
+                          parameters?.titlePlacement == TitlePlacement.label
+                      ? title
+                      : null,
+                  hintText:
+                      parameters?.titlePlacement == TitlePlacement.placeholder
+                          ? title
+                          : null,
+                  border: OutlineInputBorder())
+              .applyDefaults(theme.inputDecorationTheme)
+              .copyWith(
+                enabled: parameters?.enabled != false,
+              );
+          return Stack(
+            children: [
+              Material(
+                  borderRadius:
+                      (decoration.border as OutlineInputBorder).borderRadius,
+                  child: child),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: InputDecorator(
+                      decoration: decoration,
+                      isFocused: opened,
+                      isEmpty: value == null,
+                      expands: true),
                 ),
-              ],
-            );
-          },
-        ),
-        child: SelectorCombo<T>(
-          key: _comboKey,
-          selected: value,
-          getList: getList,
-          itemBuilder: itemBuilder,
-          childBuilder: childBuilder,
-          onItemTapped: change,
-        ),
-      );
-
-  static String _getItemText(item) {
-    final s = item?.toString();
-    if (s?.isNotEmpty != true) return '';
-    return s.contains('.') ? _TextHelper.enumToString(item) : s;
+              ),
+            ],
+          );
+        },
+      ),
+      child: SelectorCombo<T>(
+        key: _comboKey,
+        selected: value,
+        getList: getList,
+        itemBuilder: (context, parameters, item) =>
+            buildItem(context, item, itemBuilder),
+        childBuilder: (context, parameters, item) =>
+            buildItem(context, item, childBuilder, enabled: enabled),
+        onItemTapped: change,
+      ),
+    );
   }
 
-  static Widget defaultItemBuilder(
-          BuildContext context, ComboParameters parameters, item) =>
-      ListTile(title: Text(_getItemText(item)));
+  static String _getItemText(item) {
+    final value = item?.toString();
+    if (value?.isNotEmpty != true) return '';
+    final values = value.split('.');
+    return values.length == 2 ? _TextHelper.camelToWords(values[1]) : value;
+  }
 
-  static Widget defaultChildBuilder(
-          BuildContext context, ComboParameters parameters, item) =>
-      ListTile(
-          enabled: Editor.of(context).getParameters()?.enabled != false,
-          title: Text(_getItemText(item)));
+  static Widget buildItem(BuildContext context, item, EnumItemBuilder builder,
+      {bool enabled = true}) {
+    item = builder(context, item);
+    return item is Widget
+        ? item
+        : ListTile(enabled: enabled, title: Text(_getItemText(item)));
+  }
+
+  static dynamic defaultItemBuilder(BuildContext context, item,
+          {bool enabled = true}) =>
+      _getItemText(item);
+  //ListTile(enabled: enabled, title: Text(_getItemText(item)));
+
+  static dynamic defaultChildBuilder(BuildContext context, item) =>
+      defaultItemBuilder(context, item,
+          enabled: Editor.of(context).getParameters()?.enabled != false);
 }
 
 // * helpers
@@ -623,7 +644,7 @@ class _IntTextInputFormatter extends TextInputFormatter {
 }
 
 class _TextHelper {
-  static String _camelToWords(String value) {
+  static String camelToWords(String value) {
     final codes = value.runes
         .skip(1)
         .map((_) => String.fromCharCode(_))
@@ -632,7 +653,4 @@ class _TextHelper {
 
     return value[0].toUpperCase() + String.fromCharCodes(codes);
   }
-
-  static String enumToString(dynamic value) =>
-      value == null ? '' : _camelToWords(value.toString().split('.')[1]);
 }

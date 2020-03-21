@@ -1,14 +1,20 @@
-import 'package:combos/combos.dart';
 import 'package:editors/editors.dart';
 import 'package:flutter/material.dart';
 import 'package:demo_items/demo_items.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(const App());
 
-class MyApp extends StatelessWidget {
+class App extends StatelessWidget {
+  const App();
+
   @override
-  Widget build(BuildContext context) =>
-      const MaterialApp(title: 'Editors Sample App', home: HomePage());
+  Widget build(BuildContext context) => MaterialApp(
+        theme: ThemeData(
+            inputDecorationTheme:
+                const InputDecorationTheme(border: OutlineInputBorder())),
+        title: 'Editors Sample App',
+        home: const HomePage(),
+      );
 }
 
 class HomePage extends StatefulWidget {
@@ -125,12 +131,17 @@ class DemoItemState<TProperties extends ElementProperties>
   }
 
   @override
-  Widget buildProperties() => ListView(
-        padding: const EdgeInsets.all(16),
-        shrinkWrap: true,
-        physics: ClampingScrollPhysics(),
-        children: widget.properties.editors.map((e) => e.build()).toList(),
-      );
+  Widget buildProperties() {
+    final editors = widget.properties.editors;
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      shrinkWrap: true,
+      physics: ClampingScrollPhysics(),
+      itemCount: editors.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) => editors[index].build(),
+    );
+  }
 }
 
 class ElementProperties {
