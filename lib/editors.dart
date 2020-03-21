@@ -130,7 +130,9 @@ class EditorsContextData extends InheritedWidget {
 }
 
 abstract class Editor<T> {
-  Editor({this.title, this.onChanged, this.value});
+  Editor(
+      {this.title, TitlePlacement titlePlacement, this.onChanged, this.value})
+      : _titlePlacement = titlePlacement;
   final _key = GlobalKey<_EditorState>();
   String title;
   final ValueChanged<T> onChanged;
@@ -150,8 +152,20 @@ abstract class Editor<T> {
 
   /// Editor parameters from current context.
   /// Available only after [build] called.
+  @protected
   EditorParameters get parameters => _parameters;
 
+  final TitlePlacement _titlePlacement;
+
+  /// Gets the title placement from contructor or current context parameters.
+  /// Used by [buildTitled] method, and can be overrided to
+  /// change title build behavior
+  @protected
+  TitlePlacement get titlePlacement =>
+      _titlePlacement ?? _parameters.titlePlacement;
+
+  /// Changes the value of editor, raises 'onChanged' events
+  /// and repaint editor view
   void change(T value) {
     if (this.value == value) return;
     this.value = value;
@@ -179,9 +193,9 @@ abstract class Editor<T> {
       Text(title, style: parameters?.titleStyle);
 
   @protected
-  Widget buildTitled(BuildContext context) {
+  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) {
     final child = buildConstrained(context);
-    switch (_parameters.titlePlacement) {
+    switch (titlePlacement ?? this.titlePlacement) {
       case TitlePlacement.left:
         return Row(children: [
           buildTitle(context),
@@ -246,9 +260,15 @@ abstract class StringEditorBase<T> extends Editor<T> {
     this.textAlign,
     this.delay = defaultEditorsDelay,
     String title,
+    TitlePlacement titlePlacement,
     T value,
     ValueChanged<T> onChanged,
-  }) : super(title: title, value: value, onChanged: onChanged);
+  }) : super(
+          title: title,
+          titlePlacement: titlePlacement,
+          value: value,
+          onChanged: onChanged,
+        );
 
   final InputDecoration decoration;
   final TextAlign textAlign;
@@ -280,6 +300,7 @@ class StringEditor extends StringEditorBase<String> {
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
     String title,
+    TitlePlacement titlePlacement,
     String value,
     ValueChanged<String> onChanged,
   }) : super(
@@ -287,6 +308,7 @@ class StringEditor extends StringEditorBase<String> {
           textAlign: textAlign,
           delay: delay,
           title: title,
+          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -405,6 +427,7 @@ class IntEditor extends StringEditorBase<int> {
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
     String title,
+    TitlePlacement titlePlacement,
     int value,
     ValueChanged<int> onChanged,
   })  : assert(withIncrementer != null),
@@ -414,6 +437,7 @@ class IntEditor extends StringEditorBase<int> {
           textAlign: textAlign,
           delay: delay,
           title: title,
+          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -458,10 +482,14 @@ class IntEditor extends StringEditorBase<int> {
   }
 
   @override
-  Widget buildTitled(BuildContext context) =>
-      parameters?.titlePlacement != TitlePlacement.top || !withIncrementer
-          ? super.buildTitled(context)
-          : super.buildConstrained(context);
+  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) {
+    titlePlacement ??= this.titlePlacement;
+    return super.buildTitled(
+        context,
+        titlePlacement == TitlePlacement.top && withIncrementer
+            ? TitlePlacement.none
+            : titlePlacement);
+  }
 
   static Widget buildDefaultIncrementerDecorator(
       BuildContext context,
@@ -491,6 +519,10 @@ class BoolEditor extends Editor<bool> {
       : assert(value != null),
         super(title: title, value: value, onChanged: onChanged);
 
+  @override
+  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) =>
+      super.buildConstrained(context);
+
   ListTileControlAffinity getBoolPlacement(BuildContext context) {
     switch (parameters.titlePlacement) {
       case TitlePlacement.left:
@@ -503,9 +535,6 @@ class BoolEditor extends Editor<bool> {
             : ListTileControlAffinity.platform;
     }
   }
-
-  @override
-  Widget buildTitled(BuildContext context) => super.buildConstrained(context);
 
   @override
   Widget buildBase(BuildContext context) => CheckboxListTile(
