@@ -13,8 +13,17 @@ const defaultEditorsDelay = Duration(milliseconds: 300);
 enum TitlePlacement { none, label, placeholder, left, right, top }
 
 class EditorParameters {
-  const EditorParameters(
-      {this.enabled, this.constraints, this.titlePlacement, this.titleStyle});
+  const EditorParameters({
+    this.enabled,
+    this.constraints,
+    this.titlePlacement,
+    this.titleStyle,
+  });
+
+  static const defaultParameters = EditorParameters(
+    enabled: true,
+    titlePlacement: TitlePlacement.label,
+  );
 
   final bool enabled;
   final BoxConstraints constraints;
@@ -46,12 +55,18 @@ class EditorsContext extends StatefulWidget {
     this.parameters,
     this.onValueChanged,
     this.onValuesChanged,
+    this.ignoreParentContraints = false,
     @required this.child,
-  }) : super(key: key);
+  })  : assert(ignoreParentContraints != null),
+        super(key: key);
+
   final EditorParameters parameters;
   final EditorValueChanged onValueChanged;
   final VoidCallback onValuesChanged;
   final Widget child;
+
+  /// if true, parent context constraints will not be merged with current
+  final bool ignoreParentContraints;
 
   static EditorsContextData of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<EditorsContextData>();
@@ -65,23 +80,25 @@ class _EditorsContextState extends State<EditorsContext> {
   @override
   Widget build(BuildContext context) {
     final parentData = EditorsContext.of(context);
+    final def = parentData == null
+        ? EditorParameters.defaultParameters
+        : parentData.parameters;
+    final my = widget.parameters;
     return EditorsContextData(
       widget,
-      () {
-        final params = widget.parameters;
-        final parent = parentData?.parameters;
-        return params == null
-            ? parent
-            : parent == null
-                ? params
-                : EditorParameters(
-                    enabled: params.enabled ?? parent.enabled,
-                    constraints: params.constraints ?? parent.constraints,
-                    titlePlacement:
-                        params.titlePlacement ?? parent.titlePlacement,
-                    titleStyle: params.titleStyle ?? parent.titleStyle,
-                  );
-      },
+      my == null
+          ? def
+          : def == null
+              ? my
+              : EditorParameters(
+                  enabled: my.enabled ?? def.enabled,
+                  constraints: widget.ignoreParentContraints
+                      ? my.constraints
+                      : ComboContext.mergeConstraints(
+                          my.constraints, def.constraints),
+                  titlePlacement: my.titlePlacement ?? def.titlePlacement,
+                  titleStyle: my.titleStyle ?? def.titleStyle,
+                ),
       // ignore: missing_return
       (editor, value) {
         final onValueChanged = widget.onValueChanged;
@@ -94,9 +111,6 @@ class _EditorsContextState extends State<EditorsContext> {
           SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
             if (token == _token && mounted) onValuesChanged();
           });
-          // Future.delayed(Duration(milliseconds: 1)).then((_) {
-          //   if (token == _token && mounted) onValuesChanged();
-          // });
         }
       },
     );
@@ -104,13 +118,11 @@ class _EditorsContextState extends State<EditorsContext> {
 }
 
 class EditorsContextData extends InheritedWidget {
-  EditorsContextData(this.widget, this._parametersGetter, this.change)
+  EditorsContextData(this.widget, this.parameters, this.change)
       : super(child: widget.child);
   final EditorsContext widget;
-  final EditorParametersGetter _parametersGetter;
+  final EditorParameters parameters;
   final EditorValueChanged change;
-
-  EditorParameters get parameters => _parametersGetter();
 
   @override
   bool updateShouldNotify(EditorsContextData oldWidget) =>
@@ -134,7 +146,11 @@ abstract class Editor<T> {
         : null;
   }
 
-  EditorParameters getParameters() => getContextData()?.parameters;
+  EditorParameters _parameters;
+
+  /// Editor parameters from current context.
+  /// Available only after [build] called.
+  EditorParameters get parameters => _parameters;
 
   void change(T value) {
     if (this.value == value) return;
@@ -147,28 +163,28 @@ abstract class Editor<T> {
   }
 
   @protected
-  Widget buildBase(BuildContext context, EditorParameters parameters);
+  Widget buildBase(BuildContext context);
 
   @protected
-  Widget buildConstrained(BuildContext context, EditorParameters parameters) {
-    final constraints = parameters?.constraints;
-    final child = buildBase(context, parameters);
+  Widget buildConstrained(BuildContext context) {
+    final constraints = _parameters.constraints;
+    final child = buildBase(context);
     return constraints == null
         ? child
         : ConstrainedBox(constraints: constraints, child: child);
   }
 
   @protected
-  Widget buildTitle(BuildContext context, EditorParameters parameters) =>
+  Widget buildTitle(BuildContext context) =>
       Text(title, style: parameters?.titleStyle);
 
   @protected
-  Widget buildTitled(BuildContext context, EditorParameters parameters) {
-    final child = buildConstrained(context, parameters);
-    switch (parameters?.titlePlacement) {
+  Widget buildTitled(BuildContext context) {
+    final child = buildConstrained(context);
+    switch (_parameters.titlePlacement) {
       case TitlePlacement.left:
         return Row(children: [
-          buildTitle(context, parameters),
+          buildTitle(context),
           const SizedBox(width: 16),
           child,
         ]);
@@ -176,11 +192,11 @@ abstract class Editor<T> {
         return Row(children: [
           child,
           const SizedBox(width: 16),
-          buildTitle(context, parameters),
+          buildTitle(context),
         ]);
       case TitlePlacement.top:
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          buildTitle(context, parameters),
+          buildTitle(context),
           child,
         ]);
         break;
@@ -189,14 +205,18 @@ abstract class Editor<T> {
     }
   }
 
+  /// Builds editor widget.
+  /// Can be showed only one widget per editor widget at the same time
   Widget build() => _Editor(
       key: _key,
       editor: this,
-      builder: (context) => buildTitled(
-          context,
-          context
-              .dependOnInheritedWidgetOfExactType<EditorsContextData>()
-              ?.parameters));
+      builder: (context) {
+        _parameters = context
+                .dependOnInheritedWidgetOfExactType<EditorsContextData>()
+                ?.parameters ??
+            EditorParameters.defaultParameters;
+        return buildTitled(context);
+      });
 }
 
 class _Editor extends StatefulWidget {
@@ -209,7 +229,10 @@ class _Editor extends StatefulWidget {
 }
 
 class _EditorState extends State<_Editor> {
-  void safeSetState() => setState(() {});
+  void safeSetState() {
+    if (mounted) setState(() {});
+  }
+
   Editor get editor => widget.editor;
   @override
   Widget build(BuildContext context) => widget.builder(context);
@@ -231,18 +254,20 @@ abstract class StringEditorBase<T> extends Editor<T> {
   final TextAlign textAlign;
   final Duration delay;
 
-  InputDecoration getDecoration(EditorParameters parameters) {
+  InputDecoration getDecoration() {
+    final parameters = this.parameters;
+
     if (decoration != null) return decoration;
     InputDecoration createLabelDecoration() =>
         InputDecoration(labelText: title);
 
-    switch (parameters?.titlePlacement) {
+    switch (parameters.titlePlacement) {
       case TitlePlacement.label:
         return createLabelDecoration();
       case TitlePlacement.placeholder:
         return InputDecoration(hintText: title);
       default:
-        return parameters?.titlePlacement == null
+        return parameters.titlePlacement == null
             ? createLabelDecoration()
             : null;
     }
@@ -267,13 +292,12 @@ class StringEditor extends StringEditorBase<String> {
         );
 
   @override
-  Widget buildBase(BuildContext context, EditorParameters parameters) =>
-      StringEditorInput(
+  Widget buildBase(BuildContext context) => StringEditorInput(
         value: value,
         onChanged: (value) => change(value),
-        enabled: parameters?.enabled ?? true,
+        enabled: parameters.enabled,
         title: title,
-        decoration: getDecoration(parameters),
+        decoration: getDecoration(),
         textAlign: textAlign ?? TextAlign.left,
         delay: delay,
       );
@@ -400,14 +424,14 @@ class IntEditor extends StringEditorBase<int> {
   final IncrementerDecoratorBuilder incrementerDecoratorBuilder;
 
   @override
-  Widget buildBase(BuildContext context, EditorParameters parameters) {
+  Widget buildBase(BuildContext context) {
     final input = StringEditorInput(
       key: ValueKey(minValue),
       value: value?.toString() ?? '',
       onChanged: change == null ? null : (_) => change(int.tryParse(_)),
-      enabled: parameters?.enabled ?? true,
+      enabled: parameters.enabled,
       title: title,
-      decoration: getDecoration(parameters),
+      decoration: getDecoration(),
       textAlign:
           textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
       inputFormatters: [
@@ -422,7 +446,7 @@ class IntEditor extends StringEditorBase<int> {
             input,
             this,
             parameters,
-            (context) => buildTitle(context, parameters),
+            (context) => buildTitle(context),
             value == null || maxValue == null || value < maxValue
                 ? () => change((value ?? minValue ?? 0) + 1)
                 : null,
@@ -434,10 +458,10 @@ class IntEditor extends StringEditorBase<int> {
   }
 
   @override
-  Widget buildTitled(BuildContext context, EditorParameters parameters) =>
+  Widget buildTitled(BuildContext context) =>
       parameters?.titlePlacement != TitlePlacement.top || !withIncrementer
-          ? super.buildTitled(context, parameters)
-          : super.buildConstrained(context, parameters);
+          ? super.buildTitled(context)
+          : super.buildConstrained(context);
 
   static Widget buildDefaultIncrementerDecorator(
       BuildContext context,
@@ -467,9 +491,8 @@ class BoolEditor extends Editor<bool> {
       : assert(value != null),
         super(title: title, value: value, onChanged: onChanged);
 
-  ListTileControlAffinity getBoolPlacement(
-      BuildContext context, EditorParameters parameters) {
-    switch (parameters?.titlePlacement) {
+  ListTileControlAffinity getBoolPlacement(BuildContext context) {
+    switch (parameters.titlePlacement) {
       case TitlePlacement.left:
         return ListTileControlAffinity.trailing;
       case TitlePlacement.right:
@@ -482,16 +505,14 @@ class BoolEditor extends Editor<bool> {
   }
 
   @override
-  Widget buildTitled(BuildContext context, EditorParameters parameters) =>
-      super.buildConstrained(context, parameters);
+  Widget buildTitled(BuildContext context) => super.buildConstrained(context);
 
   @override
-  Widget buildBase(BuildContext context, EditorParameters parameters) =>
-      CheckboxListTile(
+  Widget buildBase(BuildContext context) => CheckboxListTile(
         value: value,
-        onChanged: parameters?.enabled ?? true ? change : null,
+        onChanged: parameters.enabled ? change : null,
         title: title == null ? null : Text(title),
-        controlAffinity: getBoolPlacement(context, parameters),
+        controlAffinity: getBoolPlacement(context),
       );
 }
 
@@ -533,27 +554,26 @@ class EnumEditor<T> extends Editor<T> {
   void close() => _comboKey.currentState?.close();
 
   @override
-  Widget buildBase(BuildContext context, EditorParameters parameters) {
-    final enabled = parameters?.enabled != false;
+  Widget buildBase(BuildContext context) {
+    final parameters = this.parameters;
+    final enabled = parameters.enabled;
+    final titlePlacement = parameters.titlePlacement;
     return ComboContext(
       parameters: ComboParameters(
         enabled: enabled,
         childDecoratorBuilder: (context, comboParameters, opened, child) {
           final theme = Theme.of(context);
           final decoration = InputDecoration(
-                  labelText: parameters?.titlePlacement == null ||
-                          parameters?.titlePlacement == TitlePlacement.label
+                  labelText: titlePlacement == null ||
+                          titlePlacement == TitlePlacement.label
                       ? title
                       : null,
-                  hintText:
-                      parameters?.titlePlacement == TitlePlacement.placeholder
-                          ? title
-                          : null,
+                  hintText: titlePlacement == TitlePlacement.placeholder
+                      ? title
+                      : null,
                   border: OutlineInputBorder())
               .applyDefaults(theme.inputDecorationTheme)
-              .copyWith(
-                enabled: parameters?.enabled != false,
-              );
+              .copyWith(enabled: enabled);
           return Stack(
             children: [
               Material(
@@ -604,11 +624,10 @@ class EnumEditor<T> extends Editor<T> {
   static dynamic defaultItemBuilder(BuildContext context, item,
           {bool enabled = true}) =>
       _getItemText(item);
-  //ListTile(enabled: enabled, title: Text(_getItemText(item)));
 
   static dynamic defaultChildBuilder(BuildContext context, item) =>
       defaultItemBuilder(context, item,
-          enabled: Editor.of(context).getParameters()?.enabled != false);
+          enabled: Editor.of(context).parameters.enabled);
 }
 
 // * helpers
