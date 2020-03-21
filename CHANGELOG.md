@@ -1,3 +1,7 @@
+## [0.0.5] - 3/22/2020.
+
+* titles refactoring + implement EditorsBuilder
+
 ## [0.0.4] - 3/21/2020.
 
 * update EnumEditor, prepared for combos 1.1.7
