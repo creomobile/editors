@@ -1,6 +1,5 @@
 # Future plans
 
-* titles refactoring
 * implement titled widgets without editors
 * impelent calendar editor
 * fix int editor

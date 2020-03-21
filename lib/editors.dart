@@ -12,36 +12,81 @@ const defaultEditorsDelay = Duration(milliseconds: 300);
 
 enum TitlePlacement { none, label, placeholder, left, right, top }
 
+/// Signature for [EditorParameters.titleBuilder]
+typedef EditorTitleBuilder = Widget Function(BuildContext context,
+    EditorParameters parameters, TitlePlacement titlePlacement, String title);
+
 class EditorParameters {
   const EditorParameters({
     this.enabled,
     this.constraints,
     this.titlePlacement,
     this.titleStyle,
+    this.titleBuilder,
   });
 
   static const defaultParameters = EditorParameters(
     enabled: true,
     titlePlacement: TitlePlacement.label,
+    titleBuilder: defaultTitleBuilder,
   );
 
   final bool enabled;
   final BoxConstraints constraints;
   final TitlePlacement titlePlacement;
   final TextStyle titleStyle;
+  final EditorTitleBuilder titleBuilder;
 
   EditorParameters copyWith({
     bool enabled,
     BoxConstraints constraints,
     TitlePlacement titlePlacement,
     TextStyle titleStyle,
+    EditorTitleBuilder titleBuilder,
   }) =>
       EditorParameters(
         enabled: enabled ?? this.enabled,
         constraints: constraints ?? this.constraints,
         titlePlacement: titlePlacement ?? this.titlePlacement,
         titleStyle: titleStyle ?? this.titleStyle,
+        titleBuilder: titleBuilder ?? this.titleBuilder,
       );
+
+  static Widget defaultTitleBuilder(BuildContext context,
+      EditorParameters parameters, TitlePlacement titlePlacement, String title,
+      {EdgeInsets padding, String suffix, TextStyle style}) {
+    title ??= '';
+    suffix ??= titlePlacement == TitlePlacement.left ? ':' : null;
+    if (suffix?.isNotEmpty == true) title += suffix;
+    style = parameters.titleStyle;
+    var color = style?.color ?? Theme.of(context).disabledColor;
+    if (!parameters.enabled) color = color.withOpacity(color.opacity / 2);
+    style =
+        style == null ? TextStyle(color: color) : style.copyWith(color: color);
+    Widget res = AnimatedDefaultTextStyle(
+      duration: kThemeChangeDuration,
+      style: style,
+      child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
+    );
+    switch (titlePlacement) {
+      case TitlePlacement.left:
+        res = Padding(
+            padding: padding ?? const EdgeInsets.only(right: 8.0), child: res);
+        break;
+      case TitlePlacement.right:
+        res = Padding(
+            padding: padding ?? const EdgeInsets.only(left: 8.0), child: res);
+        break;
+      case TitlePlacement.top:
+        res = Padding(
+            padding: padding ?? const EdgeInsets.only(bottom: 4.0), child: res);
+        break;
+      default:
+        break;
+    }
+
+    return res;
+  }
 }
 
 // Return true to cancel the notification bubbling. Return false (or null) to
@@ -84,21 +129,23 @@ class _EditorsContextState extends State<EditorsContext> {
         ? EditorParameters.defaultParameters
         : parentData.parameters;
     final my = widget.parameters;
+    final merged = my == null
+        ? def
+        : def == null
+            ? my
+            : EditorParameters(
+                enabled: my.enabled ?? def.enabled,
+                constraints: widget.ignoreParentContraints
+                    ? my.constraints
+                    : ComboContext.mergeConstraints(
+                        my.constraints, def.constraints),
+                titlePlacement: my.titlePlacement ?? def.titlePlacement,
+                titleStyle: my.titleStyle ?? def.titleStyle,
+                titleBuilder: my.titleBuilder ?? def.titleBuilder,
+              );
     return EditorsContextData(
       widget,
-      my == null
-          ? def
-          : def == null
-              ? my
-              : EditorParameters(
-                  enabled: my.enabled ?? def.enabled,
-                  constraints: widget.ignoreParentContraints
-                      ? my.constraints
-                      : ComboContext.mergeConstraints(
-                          my.constraints, def.constraints),
-                  titlePlacement: my.titlePlacement ?? def.titlePlacement,
-                  titleStyle: my.titleStyle ?? def.titleStyle,
-                ),
+      merged,
       // ignore: missing_return
       (editor, value) {
         final onValueChanged = widget.onValueChanged;
@@ -180,39 +227,38 @@ abstract class Editor<T> {
   Widget buildBase(BuildContext context);
 
   @protected
-  Widget buildConstrained(BuildContext context) {
+  Widget buildConstrained(BuildContext context, [Widget child]) {
     final constraints = _parameters.constraints;
-    final child = buildBase(context);
+    child ??= buildBase(context);
     return constraints == null
         ? child
         : ConstrainedBox(constraints: constraints, child: child);
   }
 
   @protected
-  Widget buildTitle(BuildContext context) =>
-      Text(title, style: parameters?.titleStyle);
-
-  @protected
+  // ignore: missing_return
   Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) {
     final child = buildConstrained(context);
-    switch (titlePlacement ?? this.titlePlacement) {
+    titlePlacement ??= this.titlePlacement;
+    switch (titlePlacement) {
       case TitlePlacement.left:
-        return Row(children: [
-          buildTitle(context),
-          const SizedBox(width: 16),
-          child,
-        ]);
       case TitlePlacement.right:
-        return Row(children: [
-          child,
-          const SizedBox(width: 16),
-          buildTitle(context),
-        ]);
       case TitlePlacement.top:
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          buildTitle(context),
-          child,
-        ]);
+        final parameters = this.parameters;
+        final title = parameters.titleBuilder(
+            context, parameters, titlePlacement, this.title);
+
+        // ignore: missing_enum_constant_in_switch
+        switch (titlePlacement) {
+          case TitlePlacement.left:
+            return Row(children: [title, child]);
+          case TitlePlacement.right:
+            return Row(children: [child, title]);
+          case TitlePlacement.top:
+            return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [buildConstrained(context, title), child]);
+        }
         break;
       default:
         return child;
@@ -449,6 +495,7 @@ class IntEditor extends StringEditorBase<int> {
 
   @override
   Widget buildBase(BuildContext context) {
+    final parameters = this.parameters;
     final input = StringEditorInput(
       key: ValueKey(minValue),
       value: value?.toString() ?? '',
@@ -463,14 +510,14 @@ class IntEditor extends StringEditorBase<int> {
       ],
       delay: delay,
     );
-
     return withIncrementer && incrementerDecoratorBuilder != null
         ? incrementerDecoratorBuilder(
             context,
             input,
             this,
             parameters,
-            (context) => buildTitle(context),
+            (context) => parameters.titleBuilder(
+                context, parameters, titlePlacement, title),
             value == null || maxValue == null || value < maxValue
                 ? () => change((value ?? minValue ?? 0) + 1)
                 : null,
