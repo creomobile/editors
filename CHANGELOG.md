@@ -1,4 +1,4 @@
-## [0.0.4] - 3/19/2020.
+## [0.0.4] - 3/21/2020.
 
 * update EnumEditor, prepared for combos 1.1.7
 
