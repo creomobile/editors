@@ -1,8 +1,10 @@
 # Future plans
 
-* implement titled widgets without editors
+* update example - add combo properties
 * impelent calendar editor
 * fix int editor
+* add keyboard type
+* implement .email(), .phone() constructors in StringEditor
 * implement double editor with .currency() constructor
+* implement titled widgets without editors
 * implement multiple views of enum editor
-* update example - add combo properties

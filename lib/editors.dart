@@ -176,7 +176,26 @@ class EditorsContextData extends InheritedWidget {
       widget.parameters != oldWidget.widget.parameters;
 }
 
-abstract class Editor<T> {
+abstract class EditorsBuilder {
+  Widget build();
+}
+
+class EditorsBuilderImpl implements EditorsBuilder {
+  const EditorsBuilderImpl(this._builder);
+  final WidgetBuilder _builder;
+  @override
+  Widget build() => Builder(builder: _builder);
+}
+
+class EditorsChildBuilder implements EditorsBuilder {
+  const EditorsChildBuilder(this._child);
+  static const separator = EditorsChildBuilder(SizedBox(width: 16, height: 16));
+  final Widget _child;
+  @override
+  Widget build() => _child;
+}
+
+abstract class Editor<T> implements EditorsBuilder {
   Editor(
       {this.title, TitlePlacement titlePlacement, this.onChanged, this.value})
       : _titlePlacement = titlePlacement;
@@ -267,6 +286,7 @@ abstract class Editor<T> {
 
   /// Builds editor widget.
   /// Can be showed only one widget per editor widget at the same time
+  @override
   Widget build() => _Editor(
       key: _key,
       editor: this,
