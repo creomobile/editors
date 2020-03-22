@@ -4,6 +4,7 @@
 * impelent calendar editor
 * fix int editor
 * add keyboard type
+* implement common properties in example
 * implement .email(), .phone() constructors in StringEditor
 * implement double editor with .currency() constructor
 * implement titled widgets without editors
