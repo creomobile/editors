@@ -4,6 +4,7 @@
 * implement calendar editor example
 * implement typeahead editor
 * implement typeahead editor example
+* move ComboController from EnumEditor, TypeaheadEditor, DatesEditor to mixin
 * fix int editor
 * add keyboard type
 * implement common properties in example

@@ -486,7 +486,7 @@ typedef IncrementerDecoratorBuilder = Widget Function(
 
 class IntEditor extends StringEditorBase<int> {
   IntEditor({
-    this.minValue,
+    this.minValue = 0,
     this.maxValue,
     this.withIncrementer = true,
     this.incrementerDecoratorBuilder = buildDefaultIncrementerDecorator,
@@ -517,6 +517,7 @@ class IntEditor extends StringEditorBase<int> {
   @override
   Widget buildBase(BuildContext context) {
     final parameters = this.parameters;
+    final enabled = parameters.enabled;
     final input = StringEditorInput(
       key: ValueKey(minValue),
       value: value?.toString() ?? '',
@@ -539,11 +540,11 @@ class IntEditor extends StringEditorBase<int> {
             parameters,
             (context) => parameters.titleBuilder(
                 context, parameters, titlePlacement, title),
-            value == null || maxValue == null || value < maxValue
+            enabled && (value == null || maxValue == null || value < maxValue)
                 ? () => change((value ?? minValue ?? 0) + 1)
                 : null,
-            value == null || minValue == null || value > minValue
-                ? () => change((value ?? minValue ?? 0) - 1)
+            enabled && (value == null || minValue == null || value > minValue)
+                ? () => change((value ?? (minValue + 1) ?? 0) - 1)
                 : null,
           )
         : input;
@@ -583,9 +584,18 @@ class IntEditor extends StringEditorBase<int> {
 // * bool
 
 class BoolEditor extends Editor<bool> {
-  BoolEditor({String title, bool value = false, ValueChanged<bool> onChanged})
-      : assert(value != null),
-        super(title: title, value: value, onChanged: onChanged);
+  BoolEditor({
+    String title,
+    TitlePlacement titlePlacement,
+    bool value = false,
+    ValueChanged<bool> onChanged,
+  })  : assert(value != null),
+        super(
+          title: title,
+          titlePlacement: titlePlacement,
+          value: value,
+          onChanged: onChanged,
+        );
 
   @override
   Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) =>
@@ -631,11 +641,13 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
     this.childBuilder = defaultChildBuilder,
     this.getIsSelectable,
     String title,
+    TitlePlacement titlePlacement,
     T value,
     ValueChanged<T> onChanged,
   })  : assert(getList != null),
         super(
           title: title,
+          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -731,7 +743,94 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
           enabled: Editor.of(context).parameters.enabled);
 }
 
-// * date
+// * typeahead
+
+class TypeaheadEditor<T> extends Editor<T> implements ComboController {
+  TypeaheadEditor({
+    @required this.getList,
+    this.decoration,
+    this.autofocus = false,
+    @required this.getItemText,
+    this.minTextLength = 1,
+    this.focusNode,
+    this.cleanAfterSelection = false,
+    @required this.itemBuilder,
+    this.onItemTapped,
+    this.getIsSelectable,
+    this.waitChanged,
+    this.openedChanged,
+    this.hoveredChanged,
+    this.onTap,
+    String title,
+    TitlePlacement titlePlacement,
+    T value,
+    ValueChanged<T> onChanged,
+  })  : assert(getList != null),
+        assert(getItemText != null),
+        assert(minTextLength >= 0),
+        assert(cleanAfterSelection != null),
+        assert(itemBuilder != null),
+        super(
+          title: title,
+          titlePlacement: titlePlacement,
+          value: value,
+          onChanged: onChanged,
+        );
+
+  final _comboKey = GlobalKey<TypeaheadComboState>();
+
+  TypeaheadGetList<T> getList;
+  InputDecoration decoration;
+  bool autofocus;
+  PopupGetItemText<T> getItemText;
+  int minTextLength;
+  FocusNode focusNode;
+  bool cleanAfterSelection;
+  EnumItemBuilder<T> itemBuilder;
+  ValueSetter<T> onItemTapped;
+  GetIsSelectable<T> getIsSelectable;
+  ValueChanged<bool> waitChanged;
+  ValueChanged<bool> openedChanged;
+  ValueChanged<bool> hoveredChanged;
+  GestureTapCallback onTap;
+
+  @override
+  bool get opened => _comboKey.currentState?.opened == true;
+  @override
+  void open() => _comboKey.currentState?.open();
+  @override
+  void close() => _comboKey.currentState?.close();
+
+  @override
+  Widget buildBase(BuildContext context) {
+    final parameters = this.parameters;
+    final enabled = parameters.enabled;
+    return ComboContext(
+      parameters: ComboParameters(enabled: enabled),
+      child: TypeaheadCombo<T>(
+        key: _comboKey,
+        getList: getList,
+        decoration: decoration,
+        autofocus: autofocus,
+        getItemText: getItemText,
+        minTextLength: minTextLength,
+        focusNode: focusNode,
+        cleanAfterSelection: cleanAfterSelection,
+        selected: value,
+        itemBuilder: (context, parameters, item) =>
+            EnumEditor.buildItem(context, item, itemBuilder),
+        onItemTapped: change,
+        getIsSelectable: getIsSelectable,
+        waitChanged: waitChanged,
+        openedChanged: openedChanged,
+        hoveredChanged: hoveredChanged,
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+// * dates
 
 class DatesEditor<T> extends Editor<T> implements CalendarComboController {
   DatesEditor({

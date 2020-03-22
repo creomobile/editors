@@ -177,7 +177,7 @@ class StringProperties extends ElementProperties {
 
 class IntProperties extends ElementProperties {
   final value = IntEditor(title: 'Value');
-  final minValue = IntEditor(title: 'Min Value');
+  final minValue = IntEditor(title: 'Min Value', value: 0);
   final maxValue = IntEditor(title: 'Max Value');
   final withIncrementer = BoolEditor(title: 'With Incrementer', value: true);
 
