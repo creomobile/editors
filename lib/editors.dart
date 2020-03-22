@@ -528,7 +528,7 @@ class IntEditor extends StringEditorBase<int> {
       textAlign:
           textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
       inputFormatters: [
-        IntTextInputFormatter(minValue: minValue, maxValue: maxValue)
+        _IntTextInputFormatter(minValue: minValue, maxValue: maxValue)
       ],
       delay: delay,
     );
@@ -618,7 +618,7 @@ class DoubleEditor extends StringEditorBase<double> {
       decoration: getDecoration(),
       textAlign: textAlign,
       inputFormatters: [
-        NumTextInputFormatter(
+        _NumTextInputFormatter(
             fractionDigits: fractionDigits, maxValue: maxValue)
       ],
       delay: delay,
@@ -775,10 +775,11 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
         key: _comboKey,
         selected: value,
         getList: getList,
-        itemBuilder: (context, parameters, item) =>
-            buildItem(context, item, itemBuilder),
-        childBuilder: (context, parameters, item) =>
-            buildItem(context, item, childBuilder, enabled: enabled),
+        itemBuilder: (context, parameters, item) => buildItem(
+            context, item, (context, item) => itemBuilder(context, item)),
+        childBuilder: (context, parameters, item) => buildItem(
+            context, item, (context, item) => childBuilder(context, item),
+            enabled: enabled),
         onItemTapped: change,
       ),
     );
@@ -1107,7 +1108,7 @@ class DatesEditor<T> extends Editor<T> implements CalendarComboController {
 
 // * helpers
 
-abstract class SimpleInputFormatter extends TextInputFormatter {
+abstract class _SimpleInputFormatter extends TextInputFormatter {
   String format(String oldValue, String newValue);
 
   @override
@@ -1123,8 +1124,8 @@ abstract class SimpleInputFormatter extends TextInputFormatter {
   }
 }
 
-class IntTextInputFormatter extends SimpleInputFormatter {
-  IntTextInputFormatter({this.minValue, this.maxValue});
+class _IntTextInputFormatter extends _SimpleInputFormatter {
+  _IntTextInputFormatter({this.minValue, this.maxValue});
 
   final int minValue;
   final int maxValue;
@@ -1143,8 +1144,8 @@ class IntTextInputFormatter extends SimpleInputFormatter {
   }
 }
 
-class NumTextInputFormatter extends SimpleInputFormatter {
-  NumTextInputFormatter({this.fractionDigits = 2, this.maxValue})
+class _NumTextInputFormatter extends _SimpleInputFormatter {
+  _NumTextInputFormatter({this.fractionDigits = 2, this.maxValue})
       : _maxValueStr = maxValue.toInt() == maxValue
             ? maxValue.toInt().toString()
             : maxValue.toStringAsFixed(fractionDigits);

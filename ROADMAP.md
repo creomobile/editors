@@ -1,5 +1,6 @@
 # Future plans
 
+* implement async validation
 * implement examples with final fields in editors
 * +implement calendar editor
 * implement calendar editor example
