@@ -1,5 +1,6 @@
 library editors;
 
+import 'package:calendart/calendart.dart';
 import 'package:combos/combos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -582,7 +583,7 @@ class IntEditor extends StringEditorBase<int> {
 // * bool
 
 class BoolEditor extends Editor<bool> {
-  BoolEditor({String title, @required bool value, ValueChanged<bool> onChanged})
+  BoolEditor({String title, bool value = false, ValueChanged<bool> onChanged})
       : assert(value != null),
         super(title: title, value: value, onChanged: onChanged);
 
@@ -623,7 +624,7 @@ class BoolEditor extends Editor<bool> {
 /// enum value
 typedef EnumItemBuilder<T> = Function(BuildContext context, T item);
 
-class EnumEditor<T> extends Editor<T> {
+class EnumEditor<T> extends Editor<T> implements ComboController {
   EnumEditor({
     @required this.getList,
     this.itemBuilder = defaultItemBuilder,
@@ -646,7 +647,11 @@ class EnumEditor<T> extends Editor<T> {
 
   final _comboKey = GlobalKey<SelectorComboState>();
 
+  @override
+  bool get opened => _comboKey.currentState?.opened == true;
+  @override
   void open() => _comboKey.currentState?.open();
+  @override
   void close() => _comboKey.currentState?.close();
 
   @override
@@ -724,6 +729,216 @@ class EnumEditor<T> extends Editor<T> {
   static dynamic defaultChildBuilder(BuildContext context, item) =>
       defaultItemBuilder(context, item,
           enabled: Editor.of(context).parameters.enabled);
+}
+
+// * date
+
+class DatesEditor<T> extends Editor<T> implements CalendarComboController {
+  DatesEditor({
+    this.isCombo = true,
+    this.canDeselect = false,
+    this.displayDate,
+    this.onDisplayDateChanged,
+    this.columns = 1,
+    this.rows = 1,
+    this.monthSize = const Size.square(300),
+    this.canSelectExtra = false,
+    this.canSelect,
+    this.onDayTap,
+    this.autoClosePopupAfterSelectionChanged,
+    this.openedChanged,
+    this.hoveredChanged,
+    this.onTap,
+    String title,
+    TitlePlacement titlePlacement,
+    T value,
+    ValueChanged<T> onChanged,
+  })  : assert(T == DateTime || T == DatesRange || const <DateTime>{} is T),
+        assert(isCombo != null),
+        assert(canDeselect != null),
+        assert(columns > 0),
+        assert(rows > 0),
+        assert(monthSize != null),
+        assert(canSelectExtra != null),
+        super(
+          title: title,
+          titlePlacement: titlePlacement,
+          value: value,
+          onChanged: onChanged,
+        );
+
+  bool isCombo;
+  bool canDeselect;
+  DateTime displayDate;
+  ValueChanged<DateTime> onDisplayDateChanged;
+  int columns;
+  int rows;
+  Size monthSize;
+  bool canSelectExtra;
+  CalendarSelectionCanSelect canSelect;
+  ValueSetter<DateTime> onDayTap;
+  bool autoClosePopupAfterSelectionChanged;
+  ValueChanged<bool> openedChanged;
+  ValueChanged<bool> hoveredChanged;
+  GestureTapCallback onTap;
+
+  Key __calendarKey;
+  bool _saveIsCombo;
+  int _saveColumns;
+  int _saveRows;
+  Size _saveMonthSize;
+  double _saveSeparatorWidth;
+  double _saveSeparatorHeight;
+  Key _getCalendarKey(BuildContext context) {
+    // update calendar widget if size changed
+    final calendarParameters = CalendarContext.of(context)?.parameters ??
+        CalendarParameters.defaultParameters;
+    final separatorWidth =
+        calendarParameters.horizontalSeparator.preferredSize.width;
+    final separatorHeight =
+        calendarParameters.verticalSeparator.preferredSize.height;
+    if (isCombo != _saveIsCombo ||
+        (!isCombo &&
+            (_saveColumns != columns ||
+                _saveRows != rows ||
+                _saveMonthSize != monthSize ||
+                _saveSeparatorWidth != separatorWidth ||
+                _saveSeparatorHeight != separatorHeight))) {
+      _saveIsCombo = isCombo;
+      _saveColumns = columns;
+      _saveRows = rows;
+      _saveMonthSize = monthSize;
+      _saveSeparatorWidth = separatorWidth;
+      _saveSeparatorHeight = separatorHeight;
+      __calendarKey = null;
+    }
+    return __calendarKey ?? isCombo
+        ? GlobalKey<CalendarComboState>()
+        : GlobalKey<CalendarState>();
+  }
+
+  @override
+  bool get opened =>
+      __calendarKey is GlobalKey<CalendarComboState> &&
+      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.opened ==
+          true;
+
+  @override
+  void open() {
+    if (__calendarKey is GlobalKey<CalendarComboState>) {
+      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.open();
+    }
+  }
+
+  @override
+  void close() {
+    if (__calendarKey is GlobalKey<CalendarComboState>) {
+      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.close();
+    }
+  }
+
+  @override
+  void inc() =>
+      ((__calendarKey as GlobalKey)?.currentState as CalendarController)?.inc();
+
+  @override
+  void dec() =>
+      ((__calendarKey as GlobalKey)?.currentState as CalendarController)?.dec();
+
+  CalendarSelectionBase _createSelection() {
+    if (T == DateTime) {
+      return canDeselect
+          ? CalendarSingleOrNoneSelection(
+              selected: value as DateTime,
+              onSelectedChanged: (value) => change(value as T),
+              canSelectExtra: canSelectExtra,
+              canSelect: canSelect,
+              onDayTap: onDayTap,
+              autoClosePopupAfterSelectionChanged:
+                  autoClosePopupAfterSelectionChanged ?? true,
+            )
+          : CalendarSingleSelection(
+              selected: value as DateTime,
+              onSelectedChanged: (value) => change(value as T),
+              canSelectExtra: canSelectExtra,
+              canSelect: canSelect,
+              onDayTap: onDayTap,
+              autoClosePopupAfterSelectionChanged:
+                  autoClosePopupAfterSelectionChanged ?? true,
+            );
+    } else if (T == DatesRange) {
+      return CalendarRangeSelection(
+        selected: value as DatesRange,
+        onSelectedChanged: (value) => change(value as T),
+        canSelectExtra: canSelectExtra,
+        onDayTap: onDayTap,
+        autoClosePopupAfterSelectionChanged:
+            autoClosePopupAfterSelectionChanged ?? true,
+      );
+      // Set<DateTime>
+    } else {
+      return CalendarMultiSelection(
+        selected: value as Set<DateTime>,
+        onSelectedChanged: (value) => change(value as T),
+        canSelectExtra: canSelectExtra,
+        canSelect: canSelect,
+        onDayTap: onDayTap,
+        autoClosePopupAfterSelectionChanged:
+            autoClosePopupAfterSelectionChanged ?? false,
+      );
+    }
+  }
+
+  @override
+  Widget buildBase(BuildContext context) {
+    final selection = _createSelection();
+    if (isCombo) {
+      final parameters = this.parameters;
+      ComboTextTitlePlacement comboTitlePlacement;
+      if (this.title?.isNotEmpty == true) {
+        switch (titlePlacement ?? parameters.titlePlacement) {
+          case TitlePlacement.label:
+            comboTitlePlacement = ComboTextTitlePlacement.label;
+            break;
+          case TitlePlacement.placeholder:
+            comboTitlePlacement = ComboTextTitlePlacement.placeholder;
+            break;
+          default:
+            break;
+        }
+      }
+      final title = comboTitlePlacement == null ? null : this.title;
+      final calendar = CalendarCombo(
+        key: _getCalendarKey(context),
+        displayDate: displayDate,
+        onDisplayDateChanged: onDisplayDateChanged,
+        columns: columns,
+        rows: rows,
+        title: title,
+        selection: selection,
+        monthSize: monthSize,
+        openedChanged: openedChanged,
+        hoveredChanged: hoveredChanged,
+        onTap: onTap,
+      );
+      return comboTitlePlacement == null
+          ? calendar
+          : CalendarContext(
+              parameters: CalendarParameters(
+                  comboTextTitlePlacement: comboTitlePlacement),
+              child: calendar);
+    } else {
+      return Calendar(
+        key: _getCalendarKey(context),
+        displayDate: displayDate,
+        onDisplayDateChanged: onDisplayDateChanged,
+        columns: columns,
+        rows: rows,
+        selection: selection,
+        monthSize: monthSize,
+      );
+    }
+  }
 }
 
 // * helpers

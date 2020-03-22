@@ -41,7 +41,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               DemoItem<StringProperties>(
                 properties: StringProperties(),
-                childBuilder: (properties) => EditorsContext(
+                childBuilder: (properties, modifiedEditor) => EditorsContext(
                   onValueChanged: (editor, value) {
                     properties.value.value = value;
                     return true;
@@ -55,7 +55,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
               DemoItem<IntProperties>(
                 properties: IntProperties(),
-                childBuilder: (properties) => EditorsContext(
+                childBuilder: (properties, modifiedEditor) => EditorsContext(
                   onValueChanged: (editor, value) {
                     properties.value.value = value;
                     return true;
@@ -73,7 +73,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
               DemoItem<BoolProperties>(
                 properties: BoolProperties(),
-                childBuilder: (properties) => EditorsContext(
+                childBuilder: (properties, modifiedEditor) => EditorsContext(
                   onValueChanged: (editor, value) {
                     properties.value.value = value;
                     return true;
@@ -87,7 +87,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
               DemoItem<EnumProperties>(
                 properties: EnumProperties(),
-                childBuilder: (properties) {
+                childBuilder: (properties, modifiedEditor) {
                   final editorsContext = EditorsContext(
                     onValueChanged: (editor, value) {
                       properties.value.value = value;
@@ -117,8 +117,6 @@ class _HomePageState extends State<HomePage> {
         ]),
       );
 }
-
-typedef ChildBuilder<TProperties> = Widget Function(TProperties properties);
 
 class DemoItem<TProperties extends ElementProperties>
     extends DemoItemBase<TProperties> {
