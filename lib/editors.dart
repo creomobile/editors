@@ -528,7 +528,7 @@ class IntEditor extends StringEditorBase<int> {
       textAlign:
           textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
       inputFormatters: [
-        _IntTextInputFormatter(minValue: minValue, maxValue: maxValue)
+        IntTextInputFormatter(minValue: minValue, maxValue: maxValue)
       ],
       delay: delay,
     );
@@ -558,6 +558,71 @@ class IntEditor extends StringEditorBase<int> {
         titlePlacement == TitlePlacement.top && withIncrementer
             ? TitlePlacement.none
             : titlePlacement);
+  }
+
+  static Widget buildDefaultIncrementerDecorator(
+      BuildContext context,
+      Widget input,
+      IntEditor editor,
+      EditorParameters parameters,
+      WidgetBuilder titleBuilder,
+      VoidCallback inc,
+      VoidCallback dec) {
+    return Row(children: [
+      IconButton(icon: Icon(Icons.remove), onPressed: dec),
+      Expanded(
+          child: parameters?.titlePlacement == TitlePlacement.top
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [titleBuilder(context), input])
+              : input),
+      IconButton(icon: Icon(Icons.add), onPressed: inc),
+    ]);
+  }
+}
+
+// * double
+
+class DoubleEditor extends StringEditorBase<double> {
+  DoubleEditor({
+    this.fractionDigits,
+    this.maxValue,
+    InputDecoration decoration,
+    TextAlign textAlign,
+    Duration delay = defaultEditorsDelay,
+    String title,
+    TitlePlacement titlePlacement,
+    double value,
+    ValueChanged<double> onChanged,
+  }) : super(
+          decoration: decoration,
+          textAlign: textAlign,
+          delay: delay,
+          title: title,
+          titlePlacement: titlePlacement,
+          value: value,
+          onChanged: onChanged,
+        );
+
+  final int fractionDigits;
+  final double maxValue;
+
+  @override
+  Widget buildBase(BuildContext context) {
+    final parameters = this.parameters;
+    return StringEditorInput(
+      value: value?.toString() ?? '',
+      onChanged: change == null ? null : (_) => change(double.tryParse(_)),
+      enabled: parameters.enabled,
+      title: title,
+      decoration: getDecoration(),
+      textAlign: textAlign,
+      inputFormatters: [
+        NumTextInputFormatter(
+            fractionDigits: fractionDigits, maxValue: maxValue)
+      ],
+      delay: delay,
+    );
   }
 
   static Widget buildDefaultIncrementerDecorator(
@@ -1042,12 +1107,29 @@ class DatesEditor<T> extends Editor<T> implements CalendarComboController {
 
 // * helpers
 
-class _IntTextInputFormatter extends TextInputFormatter {
-  _IntTextInputFormatter({this.minValue, this.maxValue});
+abstract class SimpleInputFormatter extends TextInputFormatter {
+  String format(String oldValue, String newValue);
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final value = format(oldValue.text, newValue.text);
+
+    return value != newValue.text
+        ? newValue.copyWith(
+            text: value,
+            selection: TextSelection.collapsed(offset: value.length))
+        : newValue.copyWith(text: value);
+  }
+}
+
+class IntTextInputFormatter extends SimpleInputFormatter {
+  IntTextInputFormatter({this.minValue, this.maxValue});
 
   final int minValue;
   final int maxValue;
 
+  @override
   String format(String oldValue, String newValue) {
     if (newValue?.isNotEmpty != true) return '';
     if (newValue.contains('-')) return oldValue;
@@ -1059,16 +1141,37 @@ class _IntTextInputFormatter extends TextInputFormatter {
 
     return i.toString();
   }
+}
+
+class NumTextInputFormatter extends SimpleInputFormatter {
+  NumTextInputFormatter({this.fractionDigits = 2, this.maxValue})
+      : _maxValueStr = maxValue.toInt() == maxValue
+            ? maxValue.toInt().toString()
+            : maxValue.toStringAsFixed(fractionDigits);
+  final int fractionDigits;
+  final num maxValue;
+  final String _maxValueStr;
 
   @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final value = format(oldValue.text, newValue.text);
-    return value != newValue.text
-        ? newValue.copyWith(
-            text: value,
-            selection: TextSelection.collapsed(offset: value.length))
-        : newValue.copyWith(text: value);
+  String format(String oldValue, String newValue) {
+    // allow symbols removing
+    if (newValue.length < oldValue.length) return newValue;
+
+    final n = num.tryParse(newValue);
+
+    // check for parse error and negative
+    if (n == null || n < 0) return oldValue;
+
+    // check for maximum allowed
+    if (n <= maxValue) {
+      final index = newValue.indexOf('.');
+      // check fraction
+      return index == -1 || newValue.length - index - 1 <= fractionDigits
+          ? newValue
+          : oldValue;
+    }
+
+    return _maxValueStr;
   }
 }
 
