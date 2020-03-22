@@ -26,11 +26,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final stringEditor = StringEditor(title: 'String value');
-  final intEditor = IntEditor(title: 'Int value');
-  final boolEditor = BoolEditor(title: 'Bool value', value: false);
+  final stringEditor = StringEditor(title: 'String Editor');
+  final intEditor = IntEditor(title: 'Int Editor');
+  final boolEditor = BoolEditor(title: 'Bool Editor', value: false);
   final enumEditor = EnumEditor<MainAxisAlignment>(
-      title: 'Enum value', getList: () => [null, ...MainAxisAlignment.values]);
+      title: 'Enum Editor', getList: () => [null, ...MainAxisAlignment.values]);
 
   @override
   Widget build(BuildContext context) => Scaffold(

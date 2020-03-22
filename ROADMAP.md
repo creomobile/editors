@@ -6,6 +6,8 @@
 * add keyboard type
 * implement common properties in example
 * implement .email(), .phone() constructors in StringEditor
+* implement typeahead editor
+* implement multiselect editor
 * implement double editor with .currency() constructor
 * implement titled widgets without editors
 * implement multiple views of enum editor
