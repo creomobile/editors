@@ -1010,6 +1010,11 @@ class DatesEditor<T> extends Editor<T> implements CalendarComboController {
   void dec() =>
       ((__calendarKey as GlobalKey)?.currentState as CalendarController)?.dec();
 
+  @override
+  void setDisplayDate(DateTime date) =>
+      ((__calendarKey as GlobalKey)?.currentState as CalendarController)
+          ?.setDisplayDate(date);
+
   CalendarSelectionBase _createSelection() {
     if (T == DateTime) {
       return canDeselect
