@@ -775,7 +775,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
         key: _comboKey,
         selected: value,
         getList: getList,
-        itemBuilder: (context, parameters, item) => buildItem(
+        itemBuilder: (context, parameters, item, selected) => buildItem(
             context, item, (context, item) => itemBuilder(context, item)),
         childBuilder: (context, parameters, item) => buildItem(
             context, item, (context, item) => childBuilder(context, item),
@@ -883,7 +883,7 @@ class TypeaheadEditor<T> extends Editor<T> implements ComboController {
         focusNode: focusNode,
         cleanAfterSelection: cleanAfterSelection,
         selected: value,
-        itemBuilder: (context, parameters, item) =>
+        itemBuilder: (context, parameters, item, selected) =>
             EnumEditor.buildItem(context, item, itemBuilder),
         onItemTapped: change,
         getIsSelectable: getIsSelectable,

@@ -21,7 +21,7 @@ packages:
       name: combos
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.7+2"
+    version: "1.1.7+3"
   combos_example:
     dependency: "direct main"
     description:
@@ -53,7 +53,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.6"
+    version: "0.0.7"
   flutter:
     dependency: "direct main"
     description: flutter

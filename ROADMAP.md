@@ -9,6 +9,7 @@
 * move ComboController from EnumEditor, TypeaheadEditor, DatesEditor to mixin
 * fix int editor, double editor
 * add keyboard type
+* implement 'select all on focus' for text inputs
 * implement common properties in example
 * implement .email(), .phone() constructors in StringEditor
 * implement multiselect editor
