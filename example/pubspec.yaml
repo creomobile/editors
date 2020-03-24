@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^0.1.3
-  combos: ^1.1.7+3
+  combos: ^1.1.7+4
   editors: any
   demo_items:
     git: https://github.com/creomobile/demo_items

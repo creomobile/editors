@@ -883,7 +883,7 @@ class TypeaheadEditor<T> extends Editor<T> implements ComboController {
         focusNode: focusNode,
         cleanAfterSelection: cleanAfterSelection,
         selected: value,
-        itemBuilder: (context, parameters, item, selected) =>
+        itemBuilder: (context, parameters, item, selected, text) =>
             EnumEditor.buildItem(context, item, itemBuilder),
         onItemTapped: change,
         getIsSelectable: getIsSelectable,
