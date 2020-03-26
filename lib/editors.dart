@@ -739,7 +739,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
     return ComboContext(
       parameters: ComboParameters(
         enabled: enabled,
-        childDecoratorBuilder: (context, comboParameters, opened, child) {
+        childDecoratorBuilder: (context, comboParameters, controller, child) {
           final theme = Theme.of(context);
           final decoration = InputDecoration(
                   labelText: titlePlacement == null ||
@@ -762,7 +762,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
                 child: IgnorePointer(
                   child: InputDecorator(
                       decoration: decoration,
-                      isFocused: opened,
+                      isFocused: controller.opened,
                       isEmpty: value == null,
                       expands: true),
                 ),
