@@ -7,7 +7,7 @@ packages:
       name: calendart
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.0.4+3"
+    version: "1.0.5"
   collection:
     dependency: transitive
     description:
@@ -21,7 +21,7 @@ packages:
       name: combos
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.7+6"
+    version: "1.2.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -46,6 +46,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.99"
+  titles:
+    dependency: "direct main"
+    description:
+      name: titles
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.4"
   typed_data:
     dependency: transitive
     description:

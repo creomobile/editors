@@ -3,6 +3,7 @@ import 'package:combos_example/main.dart';
 import 'package:editors/editors.dart';
 import 'package:flutter/material.dart';
 import 'package:demo_items/demo_items.dart';
+import 'package:titles/titles.dart';
 
 void main() => runApp(const App());
 
@@ -15,7 +16,9 @@ class App extends StatelessWidget {
             inputDecorationTheme:
                 const InputDecorationTheme(border: OutlineInputBorder())),
         title: 'Editors Sample App',
-        home: const HomePage(),
+        home: const TitlesContext(
+            parameters: TitleParameters(style: TextStyle(color: Colors.grey)),
+            child: HomePage()),
       );
 }
 
@@ -139,9 +142,11 @@ class DemoItemState<TProperties extends ElementProperties>
           enabled: properties.enabled.value,
           constraints:
               BoxConstraints(maxWidth: properties.maxWidth.value.toDouble()),
-          titlePlacement: properties.titlePlacement.value,
         ),
-        child: super.buildChild());
+        child: TitlesContext(
+            parameters:
+                TitleParameters(placement: properties.titlePlacement.value),
+            child: super.buildChild()));
   }
 
   @override

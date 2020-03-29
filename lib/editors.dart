@@ -1,93 +1,35 @@
 library editors;
 
-import 'package:calendart/calendart.dart';
 import 'package:combos/combos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:titles/titles.dart';
 
 // * abstractions
 
 const defaultEditorsDelay = Duration(milliseconds: 300);
 
-enum TitlePlacement { none, label, placeholder, left, right, top }
-
-/// Signature for [EditorParameters.titleBuilder]
-typedef EditorTitleBuilder = Widget Function(BuildContext context,
-    EditorParameters parameters, TitlePlacement titlePlacement, String title);
-
 class EditorParameters {
   const EditorParameters({
     this.enabled,
     this.constraints,
-    this.titlePlacement,
-    this.titleStyle,
-    this.titleBuilder,
   });
 
-  static const defaultParameters = EditorParameters(
-    enabled: true,
-    titlePlacement: TitlePlacement.label,
-    titleBuilder: defaultTitleBuilder,
-  );
+  static const defaultParameters = EditorParameters(enabled: true);
 
   final bool enabled;
   final BoxConstraints constraints;
-  final TitlePlacement titlePlacement;
-  final TextStyle titleStyle;
-  final EditorTitleBuilder titleBuilder;
 
   EditorParameters copyWith({
     bool enabled,
     BoxConstraints constraints,
-    TitlePlacement titlePlacement,
-    TextStyle titleStyle,
-    EditorTitleBuilder titleBuilder,
   }) =>
       EditorParameters(
         enabled: enabled ?? this.enabled,
         constraints: constraints ?? this.constraints,
-        titlePlacement: titlePlacement ?? this.titlePlacement,
-        titleStyle: titleStyle ?? this.titleStyle,
-        titleBuilder: titleBuilder ?? this.titleBuilder,
       );
-
-  static Widget defaultTitleBuilder(BuildContext context,
-      EditorParameters parameters, TitlePlacement titlePlacement, String title,
-      {EdgeInsets padding, String suffix, TextStyle style}) {
-    title ??= '';
-    suffix ??= titlePlacement == TitlePlacement.left ? ':' : null;
-    if (suffix?.isNotEmpty == true) title += suffix;
-    style = parameters.titleStyle;
-    var color = style?.color ?? Theme.of(context).disabledColor;
-    if (!parameters.enabled) color = color.withOpacity(color.opacity / 2);
-    style =
-        style == null ? TextStyle(color: color) : style.copyWith(color: color);
-    Widget res = AnimatedDefaultTextStyle(
-      duration: kThemeChangeDuration,
-      style: style,
-      child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis),
-    );
-    switch (titlePlacement) {
-      case TitlePlacement.left:
-        res = Padding(
-            padding: padding ?? const EdgeInsets.only(right: 8.0), child: res);
-        break;
-      case TitlePlacement.right:
-        res = Padding(
-            padding: padding ?? const EdgeInsets.only(left: 8.0), child: res);
-        break;
-      case TitlePlacement.top:
-        res = Padding(
-            padding: padding ?? const EdgeInsets.only(bottom: 4.0), child: res);
-        break;
-      default:
-        break;
-    }
-
-    return res;
-  }
 }
 
 // Return true to cancel the notification bubbling. Return false (or null) to
@@ -140,9 +82,6 @@ class _EditorsContextState extends State<EditorsContext> {
                     ? my.constraints
                     : ComboContext.mergeConstraints(
                         my.constraints, def.constraints),
-                titlePlacement: my.titlePlacement ?? def.titlePlacement,
-                titleStyle: my.titleStyle ?? def.titleStyle,
-                titleBuilder: my.titleBuilder ?? def.titleBuilder,
               );
     return EditorsContextData(
       widget,
@@ -197,9 +136,8 @@ class EditorsChildBuilder implements EditorsBuilder {
 }
 
 abstract class Editor<T> implements EditorsBuilder {
-  Editor(
-      {this.title, TitlePlacement titlePlacement, this.onChanged, this.value})
-      : _titlePlacement = titlePlacement;
+  Editor({this.title, this.onChanged, this.value});
+
   final _key = GlobalKey<_EditorState>();
   String title;
   final ValueChanged<T> onChanged;
@@ -215,21 +153,17 @@ abstract class Editor<T> implements EditorsBuilder {
         : null;
   }
 
+  TitlePlacement getTitlePlacement(BuildContext context) =>
+      (TitlesContext.of(context)?.parameters ??
+              TitleParameters.defaultParameters)
+          .placement;
+
   EditorParameters _parameters;
 
   /// Editor parameters from current context.
   /// Available only after [build] called.
   @protected
   EditorParameters get parameters => _parameters;
-
-  final TitlePlacement _titlePlacement;
-
-  /// Gets the title placement from contructor or current context parameters.
-  /// Used by [buildTitled] method, and can be overrided to
-  /// change title build behavior
-  @protected
-  TitlePlacement get titlePlacement =>
-      _titlePlacement ?? _parameters.titlePlacement;
 
   /// Changes the value of editor, raises 'onChanged' events
   /// and repaint editor view
@@ -250,39 +184,18 @@ abstract class Editor<T> implements EditorsBuilder {
   Widget buildConstrained(BuildContext context, [Widget child]) {
     final constraints = _parameters.constraints;
     child ??= buildBase(context);
-    return constraints == null
-        ? child
-        : ConstrainedBox(constraints: constraints, child: child);
-  }
-
-  @protected
-  // ignore: missing_return
-  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) {
-    final child = buildConstrained(context);
-    titlePlacement ??= this.titlePlacement;
-    switch (titlePlacement) {
-      case TitlePlacement.left:
-      case TitlePlacement.right:
-      case TitlePlacement.top:
-        final parameters = this.parameters;
-        final title = parameters.titleBuilder(
-            context, parameters, titlePlacement, this.title);
-
-        // ignore: missing_enum_constant_in_switch
-        switch (titlePlacement) {
-          case TitlePlacement.left:
-            return Row(children: [title, child]);
-          case TitlePlacement.right:
-            return Row(children: [child, title]);
-          case TitlePlacement.top:
-            return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [buildConstrained(context, title), child]);
-        }
-        break;
-      default:
-        return child;
+    final titlePlacement = getTitlePlacement(context);
+    if (titlePlacement == TitlePlacement.top) {
+      child = child.buildTitled(title, TitlePlacement.top);
     }
+    if (constraints != null) {
+      child = ConstrainedBox(constraints: constraints, child: child);
+    }
+    if (titlePlacement == TitlePlacement.left ||
+        titlePlacement == TitlePlacement.right) {
+      child = child.buildTitled(title, titlePlacement);
+    }
+    return child;
   }
 
   /// Builds editor widget.
@@ -296,7 +209,7 @@ abstract class Editor<T> implements EditorsBuilder {
                 .dependOnInheritedWidgetOfExactType<EditorsContextData>()
                 ?.parameters ??
             EditorParameters.defaultParameters;
-        return buildTitled(context);
+        return buildConstrained(context);
       });
 }
 
@@ -327,12 +240,10 @@ abstract class StringEditorBase<T> extends Editor<T> {
     this.textAlign,
     this.delay = defaultEditorsDelay,
     String title,
-    TitlePlacement titlePlacement,
     T value,
     ValueChanged<T> onChanged,
   }) : super(
           title: title,
-          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -341,22 +252,20 @@ abstract class StringEditorBase<T> extends Editor<T> {
   final TextAlign textAlign;
   final Duration delay;
 
-  InputDecoration getDecoration() {
-    final parameters = this.parameters;
+  InputDecoration getDecoration(BuildContext context) {
+    final titlePlacement = getTitlePlacement(context);
 
     if (decoration != null) return decoration;
     InputDecoration createLabelDecoration() =>
         InputDecoration(labelText: title);
 
-    switch (parameters.titlePlacement) {
+    switch (titlePlacement) {
       case TitlePlacement.label:
         return createLabelDecoration();
       case TitlePlacement.placeholder:
         return InputDecoration(hintText: title);
       default:
-        return parameters.titlePlacement == null
-            ? createLabelDecoration()
-            : null;
+        return titlePlacement == null ? createLabelDecoration() : null;
     }
   }
 }
@@ -367,7 +276,6 @@ class StringEditor extends StringEditorBase<String> {
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
     String title,
-    TitlePlacement titlePlacement,
     String value,
     ValueChanged<String> onChanged,
   }) : super(
@@ -375,7 +283,6 @@ class StringEditor extends StringEditorBase<String> {
           textAlign: textAlign,
           delay: delay,
           title: title,
-          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -386,7 +293,7 @@ class StringEditor extends StringEditorBase<String> {
         onChanged: (value) => change(value),
         enabled: parameters.enabled,
         title: title,
-        decoration: getDecoration(),
+        decoration: getDecoration(context),
         textAlign: textAlign ?? TextAlign.left,
         delay: delay,
       );
@@ -494,7 +401,6 @@ class IntEditor extends StringEditorBase<int> {
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
     String title,
-    TitlePlacement titlePlacement,
     int value,
     ValueChanged<int> onChanged,
   })  : assert(withIncrementer != null),
@@ -504,7 +410,6 @@ class IntEditor extends StringEditorBase<int> {
           textAlign: textAlign,
           delay: delay,
           title: title,
-          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -517,14 +422,20 @@ class IntEditor extends StringEditorBase<int> {
   @override
   Widget buildBase(BuildContext context) {
     final parameters = this.parameters;
+    final titleParameters = TitlesContext.of(context)?.parameters ??
+        TitleParameters.defaultParameters;
+    final withIncrementer =
+        this.withIncrementer && incrementerDecoratorBuilder != null;
+    final incrementerTitle =
+        titleParameters.placement == TitlePlacement.top && withIncrementer;
     final enabled = parameters.enabled;
-    final input = StringEditorInput(
+    Widget res = StringEditorInput(
       key: ValueKey(minValue),
       value: value?.toString() ?? '',
       onChanged: change == null ? null : (_) => change(int.tryParse(_)),
       enabled: parameters.enabled,
       title: title,
-      decoration: getDecoration(),
+      decoration: getDecoration(context),
       textAlign:
           textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
       inputFormatters: [
@@ -532,32 +443,30 @@ class IntEditor extends StringEditorBase<int> {
       ],
       delay: delay,
     );
-    return withIncrementer && incrementerDecoratorBuilder != null
-        ? incrementerDecoratorBuilder(
-            context,
-            input,
-            this,
-            parameters,
-            (context) => parameters.titleBuilder(
-                context, parameters, titlePlacement, title),
-            enabled && (value == null || maxValue == null || value < maxValue)
-                ? () => change((value ?? minValue ?? 0) + 1)
-                : null,
-            enabled && (value == null || minValue == null || value > minValue)
-                ? () => change((value ?? (minValue + 1) ?? 0) - 1)
-                : null,
-          )
-        : input;
-  }
-
-  @override
-  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) {
-    titlePlacement ??= this.titlePlacement;
-    return super.buildTitled(
+    if (incrementerTitle) {
+      res = TitlesContext(parameters: titleParameters, child: res);
+    }
+    if (withIncrementer) {
+      res = incrementerDecoratorBuilder(
         context,
-        titlePlacement == TitlePlacement.top && withIncrementer
-            ? TitlePlacement.none
-            : titlePlacement);
+        res,
+        this,
+        parameters,
+        (context) => titleParameters.builder(context, titleParameters, title),
+        enabled && (value == null || maxValue == null || value < maxValue)
+            ? () => change((value ?? minValue ?? 0) + 1)
+            : null,
+        enabled && (value == null || minValue == null || value > minValue)
+            ? () => change((value ?? (minValue + 1) ?? 0) - 1)
+            : null,
+      );
+    }
+    if (incrementerTitle) {
+      res = TitlesContext(
+          parameters: titleParameters.copyWith(placement: TitlePlacement.none),
+          child: res);
+    }
+    return res;
   }
 
   static Widget buildDefaultIncrementerDecorator(
@@ -568,75 +477,12 @@ class IntEditor extends StringEditorBase<int> {
       WidgetBuilder titleBuilder,
       VoidCallback inc,
       VoidCallback dec) {
+    final titleParameters = TitlesContext.of(context)?.parameters ??
+        TitleParameters.defaultParameters;
     return Row(children: [
       IconButton(icon: Icon(Icons.remove), onPressed: dec),
       Expanded(
-          child: parameters?.titlePlacement == TitlePlacement.top
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [titleBuilder(context), input])
-              : input),
-      IconButton(icon: Icon(Icons.add), onPressed: inc),
-    ]);
-  }
-}
-
-// * double
-
-class DoubleEditor extends StringEditorBase<double> {
-  DoubleEditor({
-    this.fractionDigits,
-    this.maxValue,
-    InputDecoration decoration,
-    TextAlign textAlign,
-    Duration delay = defaultEditorsDelay,
-    String title,
-    TitlePlacement titlePlacement,
-    double value,
-    ValueChanged<double> onChanged,
-  }) : super(
-          decoration: decoration,
-          textAlign: textAlign,
-          delay: delay,
-          title: title,
-          titlePlacement: titlePlacement,
-          value: value,
-          onChanged: onChanged,
-        );
-
-  final int fractionDigits;
-  final double maxValue;
-
-  @override
-  Widget buildBase(BuildContext context) {
-    final parameters = this.parameters;
-    return StringEditorInput(
-      value: value?.toString() ?? '',
-      onChanged: change == null ? null : (_) => change(double.tryParse(_)),
-      enabled: parameters.enabled,
-      title: title,
-      decoration: getDecoration(),
-      textAlign: textAlign,
-      inputFormatters: [
-        _NumTextInputFormatter(
-            fractionDigits: fractionDigits, maxValue: maxValue)
-      ],
-      delay: delay,
-    );
-  }
-
-  static Widget buildDefaultIncrementerDecorator(
-      BuildContext context,
-      Widget input,
-      IntEditor editor,
-      EditorParameters parameters,
-      WidgetBuilder titleBuilder,
-      VoidCallback inc,
-      VoidCallback dec) {
-    return Row(children: [
-      IconButton(icon: Icon(Icons.remove), onPressed: dec),
-      Expanded(
-          child: parameters?.titlePlacement == TitlePlacement.top
+          child: titleParameters.placement == TitlePlacement.top
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [titleBuilder(context), input])
@@ -651,23 +497,17 @@ class DoubleEditor extends StringEditorBase<double> {
 class BoolEditor extends Editor<bool> {
   BoolEditor({
     String title,
-    TitlePlacement titlePlacement,
     bool value = false,
     ValueChanged<bool> onChanged,
   })  : assert(value != null),
         super(
           title: title,
-          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
 
-  @override
-  Widget buildTitled(BuildContext context, [TitlePlacement titlePlacement]) =>
-      super.buildConstrained(context);
-
   ListTileControlAffinity getBoolPlacement(BuildContext context) {
-    switch (parameters.titlePlacement) {
+    switch (super.getTitlePlacement(context)) {
       case TitlePlacement.left:
         return ListTileControlAffinity.trailing;
       case TitlePlacement.right:
@@ -678,6 +518,9 @@ class BoolEditor extends Editor<bool> {
             : ListTileControlAffinity.platform;
     }
   }
+
+  @override
+  TitlePlacement getTitlePlacement(BuildContext context) => TitlePlacement.none;
 
   @override
   Widget buildBase(BuildContext context) => CheckboxListTile(
@@ -706,13 +549,11 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
     this.childBuilder = defaultChildBuilder,
     this.getIsSelectable,
     String title,
-    TitlePlacement titlePlacement,
     T value,
     ValueChanged<T> onChanged,
   })  : assert(getList != null),
         super(
           title: title,
-          titlePlacement: titlePlacement,
           value: value,
           onChanged: onChanged,
         );
@@ -735,7 +576,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
   Widget buildBase(BuildContext context) {
     final parameters = this.parameters;
     final enabled = parameters.enabled;
-    final titlePlacement = parameters.titlePlacement;
+    final titlePlacement = getTitlePlacement(context);
     return ComboContext(
       parameters: ComboParameters(
         enabled: enabled,
@@ -780,7 +621,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
         childBuilder: (context, parameters, item) => buildItem(
             context, item, (context, item) => childBuilder(context, item),
             enabled: enabled),
-        onItemTapped: change,
+        onSelectedChanged: change,
       ),
     );
   }
@@ -807,308 +648,6 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
   static dynamic defaultChildBuilder(BuildContext context, item) =>
       defaultItemBuilder(context, item,
           enabled: Editor.of(context).parameters.enabled);
-}
-
-// * typeahead
-
-class TypeaheadEditor<T> extends Editor<T> implements ComboController {
-  TypeaheadEditor({
-    @required this.getList,
-    this.decoration,
-    this.autofocus = false,
-    @required this.getItemText,
-    this.minTextLength = 1,
-    this.focusNode,
-    this.cleanAfterSelection = false,
-    @required this.itemBuilder,
-    this.onItemTapped,
-    this.getIsSelectable,
-    this.waitChanged,
-    this.openedChanged,
-    this.hoveredChanged,
-    this.onTap,
-    String title,
-    TitlePlacement titlePlacement,
-    T value,
-    ValueChanged<T> onChanged,
-  })  : assert(getList != null),
-        assert(getItemText != null),
-        assert(minTextLength >= 0),
-        assert(cleanAfterSelection != null),
-        assert(itemBuilder != null),
-        super(
-          title: title,
-          titlePlacement: titlePlacement,
-          value: value,
-          onChanged: onChanged,
-        );
-
-  final _comboKey = GlobalKey<TypeaheadComboState>();
-
-  TypeaheadGetList<T> getList;
-  InputDecoration decoration;
-  bool autofocus;
-  PopupGetItemText<T> getItemText;
-  int minTextLength;
-  FocusNode focusNode;
-  bool cleanAfterSelection;
-  EnumItemBuilder<T> itemBuilder;
-  ValueSetter<T> onItemTapped;
-  GetIsSelectable<T> getIsSelectable;
-  ValueChanged<bool> waitChanged;
-  ValueChanged<bool> openedChanged;
-  ValueChanged<bool> hoveredChanged;
-  GestureTapCallback onTap;
-
-  @override
-  bool get opened => _comboKey.currentState?.opened == true;
-  @override
-  void open() => _comboKey.currentState?.open();
-  @override
-  void close() => _comboKey.currentState?.close();
-
-  @override
-  Widget buildBase(BuildContext context) {
-    final parameters = this.parameters;
-    final enabled = parameters.enabled;
-    return ComboContext(
-      parameters: ComboParameters(enabled: enabled),
-      child: TypeaheadCombo<T>(
-        key: _comboKey,
-        getList: getList,
-        decoration: decoration,
-        autofocus: autofocus,
-        getItemText: getItemText,
-        minTextLength: minTextLength,
-        focusNode: focusNode,
-        cleanAfterSelection: cleanAfterSelection,
-        selected: value,
-        itemBuilder: (context, parameters, item, selected, text) =>
-            EnumEditor.buildItem(context, item, itemBuilder),
-        onItemTapped: change,
-        getIsSelectable: getIsSelectable,
-        waitChanged: waitChanged,
-        openedChanged: openedChanged,
-        hoveredChanged: hoveredChanged,
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-// * dates
-
-class DatesEditor<T> extends Editor<T> implements CalendarComboController {
-  DatesEditor({
-    this.isCombo = true,
-    this.canDeselect = false,
-    this.displayDate,
-    this.onDisplayDateChanged,
-    this.columns = 1,
-    this.rows = 1,
-    this.monthSize = const Size.square(300),
-    this.canSelectExtra = false,
-    this.canSelect,
-    this.onDayTap,
-    this.autoClosePopupAfterSelectionChanged,
-    this.openedChanged,
-    this.hoveredChanged,
-    this.onTap,
-    String title,
-    TitlePlacement titlePlacement,
-    T value,
-    ValueChanged<T> onChanged,
-  })  : assert(T == DateTime || T == DatesRange || const <DateTime>{} is T),
-        assert(isCombo != null),
-        assert(canDeselect != null),
-        assert(columns > 0),
-        assert(rows > 0),
-        assert(monthSize != null),
-        assert(canSelectExtra != null),
-        super(
-          title: title,
-          titlePlacement: titlePlacement,
-          value: value,
-          onChanged: onChanged,
-        );
-
-  bool isCombo;
-  bool canDeselect;
-  DateTime displayDate;
-  ValueChanged<DateTime> onDisplayDateChanged;
-  int columns;
-  int rows;
-  Size monthSize;
-  bool canSelectExtra;
-  CalendarSelectionCanSelect canSelect;
-  ValueSetter<DateTime> onDayTap;
-  bool autoClosePopupAfterSelectionChanged;
-  ValueChanged<bool> openedChanged;
-  ValueChanged<bool> hoveredChanged;
-  GestureTapCallback onTap;
-
-  Key __calendarKey;
-  bool _saveIsCombo;
-  int _saveColumns;
-  int _saveRows;
-  Size _saveMonthSize;
-  double _saveSeparatorWidth;
-  double _saveSeparatorHeight;
-  Key _getCalendarKey(BuildContext context) {
-    // update calendar widget if size changed
-    final calendarParameters = CalendarContext.of(context)?.parameters ??
-        CalendarParameters.defaultParameters;
-    final separatorWidth =
-        calendarParameters.horizontalSeparator.preferredSize.width;
-    final separatorHeight =
-        calendarParameters.verticalSeparator.preferredSize.height;
-    if (isCombo != _saveIsCombo ||
-        (!isCombo &&
-            (_saveColumns != columns ||
-                _saveRows != rows ||
-                _saveMonthSize != monthSize ||
-                _saveSeparatorWidth != separatorWidth ||
-                _saveSeparatorHeight != separatorHeight))) {
-      _saveIsCombo = isCombo;
-      _saveColumns = columns;
-      _saveRows = rows;
-      _saveMonthSize = monthSize;
-      _saveSeparatorWidth = separatorWidth;
-      _saveSeparatorHeight = separatorHeight;
-      __calendarKey = null;
-    }
-    return __calendarKey ?? isCombo
-        ? GlobalKey<CalendarComboState>()
-        : GlobalKey<CalendarState>();
-  }
-
-  @override
-  bool get opened =>
-      __calendarKey is GlobalKey<CalendarComboState> &&
-      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.opened ==
-          true;
-
-  @override
-  void open() {
-    if (__calendarKey is GlobalKey<CalendarComboState>) {
-      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.open();
-    }
-  }
-
-  @override
-  void close() {
-    if (__calendarKey is GlobalKey<CalendarComboState>) {
-      (__calendarKey as GlobalKey<CalendarComboState>).currentState?.close();
-    }
-  }
-
-  @override
-  void inc() =>
-      ((__calendarKey as GlobalKey)?.currentState as CalendarController)?.inc();
-
-  @override
-  void dec() =>
-      ((__calendarKey as GlobalKey)?.currentState as CalendarController)?.dec();
-
-  @override
-  void setDisplayDate(DateTime date) =>
-      ((__calendarKey as GlobalKey)?.currentState as CalendarController)
-          ?.setDisplayDate(date);
-
-  CalendarSelectionBase _createSelection() {
-    if (T == DateTime) {
-      return canDeselect
-          ? CalendarSingleOrNoneSelection(
-              selected: value as DateTime,
-              onSelectedChanged: (value) => change(value as T),
-              canSelectExtra: canSelectExtra,
-              canSelect: canSelect,
-              onDayTap: onDayTap,
-              autoClosePopupAfterSelectionChanged:
-                  autoClosePopupAfterSelectionChanged ?? true,
-            )
-          : CalendarSingleSelection(
-              selected: value as DateTime,
-              onSelectedChanged: (value) => change(value as T),
-              canSelectExtra: canSelectExtra,
-              canSelect: canSelect,
-              onDayTap: onDayTap,
-              autoClosePopupAfterSelectionChanged:
-                  autoClosePopupAfterSelectionChanged ?? true,
-            );
-    } else if (T == DatesRange) {
-      return CalendarRangeSelection(
-        selected: value as DatesRange,
-        onSelectedChanged: (value) => change(value as T),
-        canSelectExtra: canSelectExtra,
-        onDayTap: onDayTap,
-        autoClosePopupAfterSelectionChanged:
-            autoClosePopupAfterSelectionChanged ?? true,
-      );
-      // Set<DateTime>
-    } else {
-      return CalendarMultiSelection(
-        selected: value as Set<DateTime>,
-        onSelectedChanged: (value) => change(value as T),
-        canSelectExtra: canSelectExtra,
-        canSelect: canSelect,
-        onDayTap: onDayTap,
-        autoClosePopupAfterSelectionChanged:
-            autoClosePopupAfterSelectionChanged ?? false,
-      );
-    }
-  }
-
-  @override
-  Widget buildBase(BuildContext context) {
-    final selection = _createSelection();
-    if (isCombo) {
-      final parameters = this.parameters;
-      ComboTextTitlePlacement comboTitlePlacement;
-      if (this.title?.isNotEmpty == true) {
-        switch (titlePlacement ?? parameters.titlePlacement) {
-          case TitlePlacement.label:
-            comboTitlePlacement = ComboTextTitlePlacement.label;
-            break;
-          case TitlePlacement.placeholder:
-            comboTitlePlacement = ComboTextTitlePlacement.placeholder;
-            break;
-          default:
-            break;
-        }
-      }
-      final title = comboTitlePlacement == null ? null : this.title;
-      final calendar = CalendarCombo(
-        key: _getCalendarKey(context),
-        displayDate: displayDate,
-        onDisplayDateChanged: onDisplayDateChanged,
-        columns: columns,
-        rows: rows,
-        title: title,
-        selection: selection,
-        monthSize: monthSize,
-        openedChanged: openedChanged,
-        hoveredChanged: hoveredChanged,
-        onTap: onTap,
-      );
-      return comboTitlePlacement == null
-          ? calendar
-          : CalendarContext(
-              parameters: CalendarParameters(
-                  comboTextTitlePlacement: comboTitlePlacement),
-              child: calendar);
-    } else {
-      return Calendar(
-        key: _getCalendarKey(context),
-        displayDate: displayDate,
-        onDisplayDateChanged: onDisplayDateChanged,
-        columns: columns,
-        rows: rows,
-        selection: selection,
-        monthSize: monthSize,
-      );
-    }
-  }
 }
 
 // * helpers

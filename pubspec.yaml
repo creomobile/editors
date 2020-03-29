@@ -9,8 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  combos: ^1.1.7+6
-  calendart: ^1.0.4+3
+  titles: 0.0.4
+  combos: ^1.2.0
+  calendart: ^1.0.5
 
 dev_dependencies:
   pedantic: ^1.8.0
