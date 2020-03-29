@@ -139,7 +139,7 @@ abstract class Editor<T> implements EditorsBuilder {
   Editor({this.title, this.onChanged, this.value});
 
   final _key = GlobalKey<_EditorState>();
-  String title;
+  dynamic title;
   final ValueChanged<T> onChanged;
   T value;
 
@@ -239,7 +239,7 @@ abstract class StringEditorBase<T> extends Editor<T> {
     this.decoration,
     this.textAlign,
     this.delay = defaultEditorsDelay,
-    String title,
+    dynamic title,
     T value,
     ValueChanged<T> onChanged,
   }) : super(
@@ -257,13 +257,13 @@ abstract class StringEditorBase<T> extends Editor<T> {
 
     if (decoration != null) return decoration;
     InputDecoration createLabelDecoration() =>
-        InputDecoration(labelText: title);
+        InputDecoration(labelText: title.toString());
 
     switch (titlePlacement) {
       case TitlePlacement.label:
         return createLabelDecoration();
       case TitlePlacement.placeholder:
-        return InputDecoration(hintText: title);
+        return InputDecoration(hintText: title.toString());
       default:
         return titlePlacement == null ? createLabelDecoration() : null;
     }
@@ -275,7 +275,7 @@ class StringEditor extends StringEditorBase<String> {
     InputDecoration decoration,
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
-    String title,
+    dynamic title,
     String value,
     ValueChanged<String> onChanged,
   }) : super(
@@ -292,7 +292,6 @@ class StringEditor extends StringEditorBase<String> {
         value: value,
         onChanged: (value) => change(value),
         enabled: parameters.enabled,
-        title: title,
         decoration: getDecoration(context),
         textAlign: textAlign ?? TextAlign.left,
         delay: delay,
@@ -305,7 +304,6 @@ class StringEditorInput extends StatefulWidget {
     @required this.value,
     @required this.onChanged,
     @required this.enabled,
-    @required this.title,
     @required this.textAlign,
     @required this.decoration,
     this.inputFormatters,
@@ -317,7 +315,6 @@ class StringEditorInput extends StatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final bool enabled;
-  final String title;
   final TextAlign textAlign;
   final InputDecoration decoration;
   final List<TextInputFormatter> inputFormatters;
@@ -400,7 +397,7 @@ class IntEditor extends StringEditorBase<int> {
     InputDecoration decoration,
     TextAlign textAlign,
     Duration delay = defaultEditorsDelay,
-    String title,
+    dynamic title,
     int value,
     ValueChanged<int> onChanged,
   })  : assert(withIncrementer != null),
@@ -434,7 +431,6 @@ class IntEditor extends StringEditorBase<int> {
       value: value?.toString() ?? '',
       onChanged: change == null ? null : (_) => change(int.tryParse(_)),
       enabled: parameters.enabled,
-      title: title,
       decoration: getDecoration(context),
       textAlign:
           textAlign ?? withIncrementer ? TextAlign.center : TextAlign.right,
@@ -496,7 +492,7 @@ class IntEditor extends StringEditorBase<int> {
 
 class BoolEditor extends Editor<bool> {
   BoolEditor({
-    String title,
+    dynamic title,
     bool value = false,
     ValueChanged<bool> onChanged,
   })  : assert(value != null),
@@ -526,7 +522,7 @@ class BoolEditor extends Editor<bool> {
   Widget buildBase(BuildContext context) => CheckboxListTile(
         value: value,
         onChanged: parameters.enabled ? change : null,
-        title: title == null ? null : Text(title),
+        title: title == null ? null : Text(title.toString()),
         controlAffinity: getBoolPlacement(context),
       );
 }
@@ -548,7 +544,7 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
     this.itemBuilder = defaultItemBuilder,
     this.childBuilder = defaultChildBuilder,
     this.getIsSelectable,
-    String title,
+    dynamic title,
     T value,
     ValueChanged<T> onChanged,
   })  : assert(getList != null),
@@ -585,10 +581,10 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
           final decoration = InputDecoration(
                   labelText: titlePlacement == null ||
                           titlePlacement == TitlePlacement.label
-                      ? title
+                      ? title.toString()
                       : null,
                   hintText: titlePlacement == TitlePlacement.placeholder
-                      ? title
+                      ? title.toString()
                       : null,
                   border: OutlineInputBorder())
               .applyDefaults(theme.inputDecorationTheme)
