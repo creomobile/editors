@@ -38,6 +38,13 @@ packages:
       url: "https://github.com/creomobile/combos"
     source: git
     version: "1.0.0"
+  creo_color_picker:
+    dependency: transitive
+    description:
+      name: creo_color_picker
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.4"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -60,7 +67,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.9"
+    version: "0.0.10"
   english_words:
     dependency: transitive
     description:

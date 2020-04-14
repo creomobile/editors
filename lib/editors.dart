@@ -1,6 +1,7 @@
 library editors;
 
 import 'package:combos/combos.dart';
+import 'package:creo_color_picker/creo_color_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -644,6 +645,45 @@ class EnumEditor<T> extends Editor<T> implements ComboController {
   static dynamic defaultChildBuilder(BuildContext context, item) =>
       defaultItemBuilder(context, item,
           enabled: Editor.of(context).parameters.enabled);
+}
+
+// * color
+
+class ColorEditor extends Editor<Color> {
+  ColorEditor(
+      {dynamic title,
+      Color value = const Color(0xffff0000),
+      ValueChanged<Color> onChanged})
+      : assert(value != null),
+        super(
+          title: title,
+          value: value,
+          onChanged: onChanged,
+        );
+
+  @override
+  Widget buildBase(BuildContext context) {
+    final parameters = this.parameters;
+    final enabled = parameters.enabled;
+    final titlePlacement = getTitlePlacement(context);
+    final colorPickerTitlePlacement = titlePlacement == TitlePlacement.label
+        ? ColorPickerComboTextTitlePlacement.label
+        : ColorPickerComboTextTitlePlacement.placeholder;
+    final title = titlePlacement == TitlePlacement.label ||
+            titlePlacement == TitlePlacement.placeholder
+        ? this.title?.toString()
+        : null;
+
+    return ComboContext(
+      parameters: ComboParameters(enabled: enabled),
+      child: ColorPickerContext(
+        parameters: ColorPickerParameters(
+            comboTextTitlePlacement: colorPickerTitlePlacement),
+        child: ColorPickerCombo(
+            color: value, onColorChanged: change, title: title),
+      ),
+    );
+  }
 }
 
 // * helpers

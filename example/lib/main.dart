@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   final boolEditor = BoolEditor(title: 'Bool Editor', value: false);
   final enumEditor = EnumEditor<MainAxisAlignment>(
       title: 'Enum Editor', getList: () => [null, ...MainAxisAlignment.values]);
+  final colorEditor = ColorEditor(title: 'Color Editor');
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -102,6 +103,33 @@ class _HomePageState extends State<HomePage> {
                     }(),
                   );
                   //return editorsContext;
+                  return ComboContext(
+                    parameters: ComboParameters(
+                      popupContraints: properties.popupWidth.value == null
+                          ? null
+                          : BoxConstraints(
+                              maxWidth: properties.popupWidth.value.toDouble(),
+                            ),
+                    ),
+                    child:
+                        properties.comboProperties.apply(child: editorsContext),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              DemoItem<ColorProperties>(
+                properties: ColorProperties(),
+                childBuilder: (properties, modifiedEditor) {
+                  final editorsContext = EditorsContext(
+                    onValueChanged: (editor, value) {
+                      properties.value.value = value;
+                      return true;
+                    },
+                    child: () {
+                      colorEditor.value = properties.value.value;
+                      return colorEditor.build();
+                    }(),
+                  );
                   return ComboContext(
                     parameters: ComboParameters(
                       popupContraints: properties.popupWidth.value == null
@@ -212,6 +240,31 @@ class EnumProperties extends ElementProperties {
 
   final value = EnumEditor<MainAxisAlignment>(
       title: 'Value', getList: () => [null, ...MainAxisAlignment.values]);
+  final IntEditor popupWidth;
+  final ComboProperties comboProperties;
+
+  @override
+  List<EditorsBuilder> get editors => [
+        value,
+        ...super.editors,
+        const EditorsSeparator('Combo Properties'),
+        popupWidth,
+        ...comboProperties.editors,
+      ];
+}
+
+class ColorProperties extends ElementProperties {
+  factory ColorProperties() {
+    final comboProperties = ComboProperties(withChildDecorator: false);
+    final popupWidth = IntEditor(
+        title: 'Popup Width',
+        onChanged: (value) => comboProperties.position.value =
+            value == null ? PopupPosition.bottomMatch : PopupPosition.bottom);
+    return ColorProperties._(popupWidth, comboProperties);
+  }
+  ColorProperties._(this.popupWidth, this.comboProperties);
+
+  final value = ColorEditor(title: 'Value');
   final IntEditor popupWidth;
   final ComboProperties comboProperties;
 
