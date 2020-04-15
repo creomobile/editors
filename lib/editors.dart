@@ -666,22 +666,13 @@ class ColorEditor extends Editor<Color> {
     final parameters = this.parameters;
     final enabled = parameters.enabled;
     final titlePlacement = getTitlePlacement(context);
-    final colorPickerTitlePlacement = titlePlacement == TitlePlacement.label
-        ? ColorPickerComboTextTitlePlacement.label
-        : ColorPickerComboTextTitlePlacement.placeholder;
-    final title = titlePlacement == TitlePlacement.label ||
-            titlePlacement == TitlePlacement.placeholder
-        ? this.title?.toString()
-        : null;
+    final title =
+        titlePlacement == TitlePlacement.label ? this.title?.toString() : null;
 
     return ComboContext(
       parameters: ComboParameters(enabled: enabled),
-      child: ColorPickerContext(
-        parameters: ColorPickerParameters(
-            comboTextTitlePlacement: colorPickerTitlePlacement),
-        child: ColorPickerCombo(
-            color: value, onColorChanged: change, title: title),
-      ),
+      child:
+          ColorPickerCombo(color: value, onColorChanged: change, title: title),
     );
   }
 }
